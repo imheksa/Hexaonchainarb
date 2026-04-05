@@ -1,0 +1,45 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "/Users/heksa/pelagos-arbitrage-bot/deploy/contracts/ArbitrageExecutor.sol": {
+      "lastModificationDate": 1775394050158,
+      "contentHash": "da4589357ba6c6c8ebf0866f0fcfa4eb",
+      "sourceName": "contracts/ArbitrageExecutor.sol",
+      "solcConfig": {
+        "version": "0.8.19",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.19"
+      ],
+      "artifacts": [
+        "ArbitrageExecutor",
+        "IERC20",
+        "IFlashLoanSimpleReceiver",
+        "IPancakeV2Router",
+        "IPool",
+        "IUniswapV3Router"
+      ]
+    }
+  }
+}

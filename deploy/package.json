@@ -1,0 +1,15 @@
+{
+  "name": "hexaonchainarb-deploy",
+  "version": "1.0.0",
+  "description": "Hexa Arb Bots — Contract Deployment",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy:testnet": "hardhat run scripts/deploy.cjs --network bscTestnet"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.19.5",
+    "dotenv": "^16.4.5"
+  }
+}

@@ -30,8 +30,8 @@ const (
 	// Aave V3 Flash Loan Provider on BNB Chain
 	AaveV3PoolBNB = "0x6807dc923806fE8Fd134338EABCA509979a7e07"
 
-	// Our deployed ArbitrageExecutor contract (fill after deploy)
-	ArbitrageExecutorBNB = ""
+	// Our deployed ArbitrageExecutor contract (BNB Testnet)
+	ArbitrageExecutorBNB = "0x45ae4eD418C5C1E77bb1e8005C86426238De8474"
 )
 
 // ─── Monitored Pools ─────────────────────────────────────────────────────────
