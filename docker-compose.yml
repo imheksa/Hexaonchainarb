@@ -1,0 +1,44 @@
+version: "3.9"
+
+# ─── Pelagos Arbitrage Bot — Local Development Stack ─────────────────────────
+#
+# Usage:
+#   docker compose up -d
+#
+# Services:
+#   appchain  — Pelagos Appchain (Go bot)
+#   pelacli   — Pelagos consensus/sequencing layer (connects to BNB Chain)
+
+services:
+  appchain:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hexa-arb-appchain
+    ports:
+      - "8080:8080"   # JSON-RPC
+      - "9090:9090"   # Pelagos emitter (internal)
+      - "9091:9091"   # Prometheus metrics
+    volumes:
+      - ./data:/data
+      - ./config.yaml:/config.yaml:ro
+    environment:
+      - PELAGOS_VALIDATOR_ID=${PELAGOS_VALIDATOR_ID}
+    command: ["/app/hexa-arb", "-config", "/config.yaml"]
+    depends_on:
+      - pelacli
+    restart: unless-stopped
+
+  pelacli:
+    image: ghcr.io/0xatelerix/pelacli:latest
+    container_name: hexa-arb-pelacli
+    volumes:
+      - ./data:/data
+      - ./pelacli.yaml:/pelacli.yaml:ro
+    environment:
+      - PELAGOS_VALIDATOR_ID=${PELAGOS_VALIDATOR_ID}
+    command: ["--config", "/pelacli.yaml"]
+    restart: unless-stopped
+
+volumes:
+  data:

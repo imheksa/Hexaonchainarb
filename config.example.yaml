@@ -1,0 +1,25 @@
+# Hexa Arb Bots — Appchain Configuration (Hexaonchainarb)
+# Copy this to config.yaml and fill in your values.
+
+# Unique chain ID for this Appchain (choose any unused ID)
+chain_id: 1337
+
+# Data directory for Pelagos Appchain databases
+data_dir: "./data"
+
+# Port for the Pelagos emitter (internal gRPC, do not expose publicly)
+emitter_port: ":9090"
+
+# JSON-RPC port for querying bot state (arb_getPrices, arb_getStats, etc.)
+rpc_port: ":8080"
+
+# Log level: 0=trace, 1=debug, 2=info, 3=warn, 4=error
+log_level: 2
+
+# External chains this Appchain must subscribe to.
+# 56 = BNB Chain mainnet
+required_chains:
+  - 56
+
+# Prometheus metrics port (optional)
+prometheus_port: ":9091"
