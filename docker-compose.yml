@@ -1,44 +1,45 @@
-version: "3.9"
-
-# ─── Pelagos Arbitrage Bot — Local Development Stack ─────────────────────────
-#
-# Usage:
-#   docker compose up -d
-#
-# Services:
-#   appchain  — Pelagos Appchain (Go bot)
-#   pelacli   — Pelagos consensus/sequencing layer (connects to BNB Chain)
-
 services:
+  pelacli:
+    container_name: pelacli
+    image: pelagosnetwork/pelacli:latest
+    working_dir: /app
+    volumes:
+      - ./data:/data
+      - ./pelacli.yaml:/config/pelacli.yaml
+    ports:
+      - "8081:8081"
+    command:
+      - consensus
+      - --config=/config/pelacli.yaml
+
   appchain:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: hexa-arb-appchain
-    ports:
-      - "8080:8080"   # JSON-RPC
-      - "9090:9090"   # Pelagos emitter (internal)
-      - "9091:9091"   # Prometheus metrics
+    working_dir: /app
+    pid: "service:pelacli"
+    image: appchain:latest
     volumes:
       - ./data:/data
-      - ./config.yaml:/config.yaml:ro
-    environment:
-      - PELAGOS_VALIDATOR_ID=${PELAGOS_VALIDATOR_ID}
-    command: ["/app/hexa-arb", "-config", "/config.yaml"]
+      - ./config.yaml:/config/config.yaml
+    ports:
+      - "9090:9090"
+      - "8080:8080"
     depends_on:
       - pelacli
+    command:
+      - -config=/config/config.yaml
     restart: unless-stopped
 
-  pelacli:
-    image: ghcr.io/0xatelerix/pelacli:latest
-    container_name: hexa-arb-pelacli
-    volumes:
-      - ./data:/data
-      - ./pelacli.yaml:/pelacli.yaml:ro
+  explorer:
+    image: pelagosnetwork/explorer:latest
+    container_name: hexa-arb-explorer
+    ports:
+      - "3000:3000"
     environment:
-      - PELAGOS_VALIDATOR_ID=${PELAGOS_VALIDATOR_ID}
-    command: ["--config", "/pelacli.yaml"]
-    restart: unless-stopped
-
-volumes:
-  data:
+      - RPC_URL=http://localhost:8080/rpc
+      - EXTERNAL_RPC_URL=http://localhost:8081/rpc
+    depends_on:
+      - appchain
+      - pelacli

@@ -1,0 +1,57 @@
+# =============================================================================
+# PELACLI CONFIG — Hexa Arb Bots (Hexaonchainarb)
+# =============================================================================
+# Copy to pelacli.yaml dan isi nilai yang diperlukan.
+# Run: docker compose up -d
+# =============================================================================
+
+data_dir: "/data"
+
+consensus:
+  ask_period: 100ms
+  fetcher_port: 8088
+
+api:
+  port: 8081
+
+avail_da:
+  api_key: ""
+
+# =============================================================================
+# READ CHAINS — BNB Chain Testnet (WSS untuk baca blocks)
+# =============================================================================
+read_chains:
+  - chain_id: 97                          # BNB Chain Testnet
+    api_key: "wss://bsc-testnet.publicnode.com"
+    start_block: 0                        # 0 = mulai dari block terbaru
+    block_offset: -2                      # -2 = latest
+    blocks_to_keep: 1000
+    prune_interval_seconds: 300
+
+# =============================================================================
+# WRITE CHAINS — BNB Chain Testnet (RPC untuk kirim ExternalTransaction)
+# =============================================================================
+# ExternalTransaction dari Appchain (arbitrage trigger) akan dikirim ke sini
+# via TSS signing oleh Pelagos validators.
+# =============================================================================
+write_chains:
+  - chain_id: 97                          # BNB Chain Testnet
+    rpc_url: "https://data-seed-prebsc-1-s1.binance.org:8545/"
+    private_key: "DEPLOYER_PRIVATE_KEY_TANPA_0x"   # ← ganti dengan private key Anda
+    pelagos_contract: "PELAGOS_CONTRACT_BSC_TESTNET"  # ← dapat dari Pelagos team
+
+# =============================================================================
+# Untuk mainnet BNB Chain (chainID 56), ganti dengan:
+#
+# read_chains:
+#   - chain_id: 56
+#     api_key: "wss://bsc.publicnode.com"
+#     block_offset: -4                    # safe
+#     blocks_to_keep: 500
+#
+# write_chains:
+#   - chain_id: 56
+#     rpc_url: "https://bsc-dataseed.binance.org/"
+#     private_key: "YOUR_PRIVATE_KEY"
+#     pelagos_contract: "PELAGOS_CONTRACT_BSC_MAINNET"
+# =============================================================================

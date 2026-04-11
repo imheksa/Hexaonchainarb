@@ -1,5 +1,6 @@
 node_modules/
 .env
+pelacli.yaml
 deploy/cache/
 deploy/artifacts/
 deploy/node_modules/
