@@ -1,0 +1,112 @@
+{
+  "min_profit_bps": 10,
+  "api_port": ":8090",
+  "max_price_age_sec": 30,
+  "chains": [
+    {
+      "chain_id": 56,
+      "name": "BNB Chain",
+      "wss": "wss://bsc-ws-node.nariox.org:443",
+      "pairs": [
+        {
+          "symbol": "WBNB/USDT",
+          "token0": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+          "token1": "0x55d398326f99059fF775485246999027B3197955",
+          "token0_decimals": 18,
+          "token1_decimals": 18,
+          "pools": [
+            {
+              "dex": "uniswap_v3",
+              "address": "0x36696169C63e42cd08ce11f5deeBbCeBae652050",
+              "fee_bps": 5,
+              "type": "v3"
+            },
+            {
+              "dex": "pancake_v2",
+              "address": "0x16b9a82891338f9bA80E2D6970FddA79D1eb0daE",
+              "fee_bps": 25,
+              "type": "v2"
+            },
+            {
+              "dex": "biswap_v2",
+              "address": "0x8840C6252e2e86e545deFb6da98B2a0E26d8C1BA",
+              "fee_bps": 10,
+              "type": "v2"
+            }
+          ]
+        },
+        {
+          "symbol": "WBNB/USDC",
+          "token0": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+          "token1": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+          "token0_decimals": 18,
+          "token1_decimals": 18,
+          "pools": [
+            {
+              "dex": "pancake_v2",
+              "address": "0xd99c7F6C65857AC913a8f880A4cb84032AB2FC5b",
+              "fee_bps": 25,
+              "type": "v2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chain_id": 137,
+      "name": "Polygon",
+      "wss": "wss://polygon-bor-rpc.publicnode.com",
+      "pairs": [
+        {
+          "symbol": "WMATIC/USDT",
+          "token0": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+          "token1": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+          "token0_decimals": 18,
+          "token1_decimals": 6,
+          "pools": [
+            {
+              "dex": "uniswap_v3",
+              "address": "0x9B08288C3Be4F62bbf8d1C20Ac9C5e6f9467d8B7",
+              "fee_bps": 5,
+              "type": "v3"
+            },
+            {
+              "dex": "quickswap_v2",
+              "address": "0x604229c960e5CACF2aaEAc8Be68Ac07BA9dF81c3",
+              "fee_bps": 30,
+              "type": "v2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chain_id": 42161,
+      "name": "Arbitrum",
+      "wss": "wss://arbitrum-one-rpc.publicnode.com",
+      "pairs": [
+        {
+          "symbol": "WETH/USDT",
+          "token0": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+          "token1": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+          "token0_decimals": 18,
+          "token1_decimals": 6,
+          "pools": [
+            {
+              "dex": "uniswap_v3",
+              "address": "0x641C00A822e8b671738d32a431a4Fb6074E5c79d",
+              "fee_bps": 5,
+              "type": "v3"
+            },
+            {
+              "dex": "camelot_v2",
+              "address": "0x84652bb2539513BAf36e225c930Fdd8eaa63CE27",
+              "fee_bps": 30,
+              "type": "v2"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
