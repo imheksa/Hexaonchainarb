@@ -6,3 +6,4 @@ deploy/artifacts/
 deploy/node_modules/
 data/
 *.log
+bin/
