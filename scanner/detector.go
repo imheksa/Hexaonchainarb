@@ -12,10 +12,11 @@ import (
 type Detector struct {
 	store        *PriceStore
 	minProfitBPS int64
+	telegram     *TelegramNotifier // nil if Telegram is disabled
 }
 
-func NewDetector(store *PriceStore, minProfitBPS int64) *Detector {
-	return &Detector{store: store, minProfitBPS: minProfitBPS}
+func NewDetector(store *PriceStore, minProfitBPS int64, tg *TelegramNotifier) *Detector {
+	return &Detector{store: store, minProfitBPS: minProfitBPS, telegram: tg}
 }
 
 // Scan checks every pair of prices for the same symbol and records any
@@ -33,10 +34,16 @@ func (d *Detector) Scan() {
 				if opp := d.calcOpportunity(prices[i], prices[j]); opp != nil {
 					d.store.AddOpportunity(opp)
 					d.log(opp)
+					if d.telegram != nil {
+						d.telegram.Notify(opp)
+					}
 				}
 				if opp := d.calcOpportunity(prices[j], prices[i]); opp != nil {
 					d.store.AddOpportunity(opp)
 					d.log(opp)
+					if d.telegram != nil {
+						d.telegram.Notify(opp)
+					}
 				}
 			}
 		}

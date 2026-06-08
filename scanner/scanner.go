@@ -8,19 +8,27 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Scanner orchestrates all chain monitors, the detector, and the API.
+// Scanner orchestrates all chain monitors, the detector, the API, and Telegram.
 type Scanner struct {
 	cfg      *Config
 	store    *PriceStore
 	detector *Detector
 	api      *API
+	telegram *TelegramNotifier
 }
 
 func New(cfg *Config) *Scanner {
 	store := NewPriceStore(cfg.MaxPriceAgeSec)
-	detector := NewDetector(store, cfg.MinProfitBPS)
+
+	var tg *TelegramNotifier
+	if cfg.Telegram != nil && cfg.Telegram.BotToken != "" && cfg.Telegram.ChatID != "" {
+		tg = NewTelegramNotifier(*cfg.Telegram)
+		log.Info().Str("chat_id", cfg.Telegram.ChatID).Msg("Telegram notifications enabled")
+	}
+
+	detector := NewDetector(store, cfg.MinProfitBPS, tg)
 	api := NewAPI(cfg.APIPort, store)
-	return &Scanner{cfg: cfg, store: store, detector: detector, api: api}
+	return &Scanner{cfg: cfg, store: store, detector: detector, api: api, telegram: tg}
 }
 
 // Run starts all goroutines and blocks until ctx is cancelled.
@@ -60,6 +68,15 @@ func (s *Scanner) Run(ctx context.Context) error {
 			}
 		}
 	}()
+
+	// Telegram notifier.
+	if s.telegram != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.telegram.Run(ctx)
+		}()
+	}
 
 	// HTTP API.
 	wg.Add(1)

@@ -41,11 +41,11 @@ type ChainConfig struct {
 
 // Config is the top-level scanner configuration.
 type Config struct {
-	Chains       []ChainConfig `json:"chains"`
-	MinProfitBPS int64         `json:"min_profit_bps"`
-	APIPort      string        `json:"api_port"`
-	// MaxPriceAgeSeconds: prices older than this are ignored in comparisons.
-	MaxPriceAgeSec int `json:"max_price_age_sec"`
+	Chains         []ChainConfig   `json:"chains"`
+	MinProfitBPS   int64           `json:"min_profit_bps"`
+	APIPort        string          `json:"api_port"`
+	MaxPriceAgeSec int             `json:"max_price_age_sec"`
+	Telegram       *TelegramConfig `json:"telegram,omitempty"`
 }
 
 func LoadConfig(path string) (*Config, error) {

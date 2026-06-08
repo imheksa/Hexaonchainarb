@@ -2,6 +2,11 @@
   "min_profit_bps": 10,
   "api_port": ":8090",
   "max_price_age_sec": 30,
+  "telegram": {
+    "bot_token": "GANTI_DENGAN_TOKEN_DARI_BOTFATHER",
+    "chat_id": "GANTI_DENGAN_CHAT_ID",
+    "min_profit_bps": 20
+  },
   "chains": [
     {
       "chain_id": 56,
