@@ -326,10 +326,10 @@
   <section id="secBalance" hidden>
     <h2>2 · Saldo Anda di Dalam Contract</h2>
     <div class="body">
-      <p class="hint">DEX orderbook klasik menyimpan dana yang Anda deposit di dalam contract, dipetakan per (token, alamat). Fungsi yang umum: <code style="font-family:var(--mono)">balanceOf(token, user)</code>. Untuk saldo ETH, pakai token <span style="font-family:var(--mono)">0x000…000</span>.</p>
+      <p class="hint">Contract menyimpan dana yang di-<b>deposit</b> tiap user, dipetakan per (token, alamat) lewat <code style="font-family:var(--mono)">balanceOf(token, user)</code>. Deposit itu on-chain &amp; permanen — beda dari "place order" yang dulu off-chain. Karena itu balance token tetap ada di contract meski orderbook-nya sudah hilang, dan tiap depositor bisa menarik miliknya. Untuk ETH, pakai token <span style="font-family:var(--mono)">0x000…000</span>.</p>
       <div class="row mt">
         <div class="grow">
-          <label for="balToken">Alamat token (kosongkan / 0x0 untuk ETH)</label>
+          <label for="balToken">Token (pilih dari daftar atau tempel alamat)</label>
           <input type="text" id="balToken" list="tokenList" value="0xB8c77482e45F1F44dE1745F52C74426C631bDD52" spellcheck="false">
           <datalist id="tokenList">
             <option value="0x0000000000000000000000000000000000000000">ETH</option>
@@ -346,6 +346,10 @@
           <input type="text" id="balUser" placeholder="0x…" spellcheck="false">
         </div>
         <button class="primary" id="btnBalance">Cek Saldo</button>
+      </div>
+      <div class="row mt">
+        <button id="btnTotalLocked">Total token ini terkunci di contract</button>
+        <span class="hint" style="align-self:center">Jumlah agregat semua depositor — bukti balance itu nyata &amp; berasal dari deposit.</span>
       </div>
       <div class="status" id="balStatus"></div>
     </div>
@@ -472,7 +476,8 @@ const PRESET_ABI = [
 
 const ERC20_ABI = [
   "function symbol() view returns (string)",
-  "function decimals() view returns (uint8)"
+  "function decimals() view returns (uint8)",
+  "function balanceOf(address owner) view returns (uint256)"
 ];
 
 const S = { provider: null, contract: null, iface: null, signer: null, tokenCache: new Map() };
@@ -617,6 +622,32 @@ async function checkBalance() {
   } catch (e) {
     setStatus(st, "Gagal: " + (e.shortMessage || e.message) +
       "\nJika ABI-nya preset, contract ini mungkin memakai nama fungsi lain — cek panel 6.", "err");
+  }
+}
+
+// Total token yang tersimpan di contract = balance ERC-20 token pada alamat contract.
+// Ini jumlah agregat semua deposit user (bukti balance berasal dari deposit, bukan order).
+async function totalLocked() {
+  const st = $("balStatus");
+  const token = $("balToken").value.trim() || ZERO;
+  const contractAddr = $("contractAddr").value.trim();
+  try {
+    if (token === ZERO) {
+      setStatus(st, "Membaca total ETH di contract …", "info");
+      const bal = await S.provider.getBalance(contractAddr);
+      setStatus(st, "Total ETH tersimpan di contract EtherDelta: " + ethers.formatEther(bal) + " ETH" +
+        "\n(agregat semua deposit ETH yang belum ditarik)", "ok");
+      return;
+    }
+    setStatus(st, "Membaca total token di contract …", "info");
+    const erc = new ethers.Contract(token, ERC20_ABI, S.provider);
+    const [bal, meta] = await Promise.all([erc.balanceOf(contractAddr), tokenMeta(token)]);
+    setStatus(st, "Total " + meta.symbol + " tersimpan di contract EtherDelta: " +
+      ethers.formatUnits(bal, meta.decimals) + " " + meta.symbol +
+      "\nMentah: " + bal.toString() +
+      "\n→ Ini jumlah agregat dari semua depositor. Balance-mu sendiri (bagian dari total ini) lihat via Cek Saldo di atas.", bal > 0n ? "ok" : "info");
+  } catch (e) {
+    setStatus(st, "Gagal membaca total: " + (e.shortMessage || e.message), "err");
   }
 }
 
@@ -997,6 +1028,7 @@ function formatResult(res) {
 $("btnRpc").addEventListener("click", connectRpc);
 $("btnLoad").addEventListener("click", loadContract);
 $("btnBalance").addEventListener("click", checkBalance);
+$("btnTotalLocked").addEventListener("click", totalLocked);
 $("btnScan").addEventListener("click", scanEvents);
 $("btnOrderbook").addEventListener("click", scanOrderbook);
 $("btnWallet").addEventListener("click", connectWallet);
