@@ -430,6 +430,14 @@ function setStatus(el, msg, kind) {
 }
 
 // ── 1. RPC + heartbeat ─────────────────────────────────
+// RPC publik cadangan (semua mendukung CORS dari browser) — dicoba berurutan.
+const FALLBACK_RPCS = [
+  "https://ethereum-rpc.publicnode.com",
+  "https://eth.llamarpc.com",
+  "https://cloudflare-eth.com",
+  "https://rpc.ankr.com/eth",
+  "https://eth.drpc.org",
+];
 let blockTimer = null;
 async function connectRpc() {
   const url = $("rpcUrl").value.trim();
@@ -445,9 +453,23 @@ async function connectRpc() {
       try { updateBlock(await S.provider.getBlockNumber()); } catch (_) {}
     }, 12000);
     setStatus($("connStatus"), "Terhubung. Blok terbaru: " + block.toLocaleString("id-ID"), "ok");
+    return true;
   } catch (e) {
     setStatus($("connStatus"), "Gagal terhubung: " + (e.shortMessage || e.message), "err");
+    return false;
   }
+}
+
+// Otomatis saat halaman dibuka: coba RPC (dengan cadangan), lalu muat contract default.
+async function autoInit() {
+  const tried = [];
+  const candidates = [$("rpcUrl").value.trim(), ...FALLBACK_RPCS]
+    .filter(u => u && !tried.includes(u) && tried.push(u));
+  for (const url of candidates) {
+    $("rpcUrl").value = url;
+    if (await connectRpc()) break;
+  }
+  if (S.provider) await loadContract();
 }
 function updateBlock(n) {
   $("pulse").className = "pulse alive";
@@ -866,6 +888,10 @@ $("abiSource").addEventListener("change", () => {
   $("etherscanKeyWrap").style.display = v === "etherscan" ? "block" : "none";
 });
 $("abiSource").dispatchEvent(new Event("change"));
+
+// Sambungkan & muat contract default otomatis begitu halaman siap.
+if (window.ethers) autoInit();
+else window.addEventListener("load", autoInit);
 </script>
 </body>
 </html>
