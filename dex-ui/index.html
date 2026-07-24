@@ -215,6 +215,18 @@
   .num { font-variant-numeric: tabular-nums; }
   .price { color: var(--amber); font-weight: 600; }
 
+  .ob-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .ob-grid { grid-template-columns: 1fr; } }
+  .ob-side { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); overflow: hidden; }
+  .ob-side h3 {
+    font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+    padding: 10px 12px; border-bottom: 1px solid var(--line);
+  }
+  .ob-side.buy h3  { color: var(--green); }
+  .ob-side.sell h3 { color: var(--red); }
+  .ob-side .total { padding: 8px 12px; font-family: var(--mono); font-size: 12px; color: var(--ink-dim); border-top: 1px solid var(--line); }
+  .ob-empty { padding: 16px 12px; color: var(--ink-dim); font-size: 13px; }
+
   .warn {
     margin-top: 28px;
     border: 1px dashed var(--amber-dim);
@@ -318,9 +330,30 @@
     </div>
   </section>
 
-  <!-- 4. TARIK DANA -->
+  <!-- 4. ORDERBOOK -->
+  <section id="secOrderbook" hidden>
+    <h2>4 · Orderbook — Ukuran Order Buy &amp; Sell</h2>
+    <div class="body">
+      <p class="hint">Memindai event <span style="font-family:var(--mono)">Order</span> on-chain untuk satu token, memisahkan sisi <b>buy</b> (maker membayar ETH untuk token) dan <b>sell</b> (maker menjual token untuk ETH), lalu memverifikasi sisa volume tiap order langsung ke contract — order yang kedaluwarsa, terisi penuh, atau dibatalkan tersaring otomatis. Catatan jujur: orderbook EtherDelta dulunya mayoritas off-chain (servernya sudah mati), jadi hanya order yang dipasang on-chain yang bisa terlihat di sini.</p>
+      <div class="row mt">
+        <div class="grow">
+          <label for="obToken">Alamat token</label>
+          <input type="text" id="obToken" placeholder="0x…" spellcheck="false">
+        </div>
+        <div class="grow">
+          <label for="obRange">Pindai berapa blok ke belakang</label>
+          <input type="text" id="obRange" value="50000" spellcheck="false">
+        </div>
+        <button class="primary" id="btnOrderbook">Pindai Order</button>
+      </div>
+      <div class="status" id="obStatus"></div>
+      <div class="ob-grid mt" id="obTables" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- 5. TARIK DANA -->
   <section id="secWithdraw" hidden>
-    <h2>4 · Tarik Dana (butuh wallet)</h2>
+    <h2>5 · Tarik Dana (butuh wallet)</h2>
     <div class="body">
       <p class="hint">Menarik dana adalah transaksi tulis — ditandatangani oleh wallet Anda sendiri (MetaMask/Rabby). Konsol ini <strong>tidak pernah</strong> meminta seed phrase atau private key.</p>
       <div class="row mt">
@@ -342,9 +375,9 @@
     </div>
   </section>
 
-  <!-- 5. EXPLORER -->
+  <!-- 6. EXPLORER -->
   <section id="secExplorer" hidden>
-    <h2>5 · Semua Fungsi Contract</h2>
+    <h2>6 · Semua Fungsi Contract</h2>
     <div class="body">
       <p class="hint">Setiap fungsi dari ABI, siap dipanggil. <span class="tag read" style="font-family:var(--disp)">read</span> gratis dan instan; <span class="tag write" style="font-family:var(--disp)">write</span> mengirim transaksi lewat wallet. Argumen array/tuple ditulis sebagai JSON.</p>
       <div id="fnList"></div>
@@ -355,7 +388,7 @@
     <strong>Aturan keselamatan.</strong> Jangan pernah memasukkan seed phrase atau private key ke situs mana pun, termasuk halaman ini (dan halaman ini memang tidak punya kolom untuk itu). Verifikasi alamat contract lewat riwayat transaksi Anda di Etherscan sebelum mengirim transaksi apa pun. Uji dulu dengan jumlah kecil.
   </div>
 
-  <footer>Berkas tunggal, tanpa server, tanpa tracking — jalankan langsung dari disk. Ethers.js v6 · RPC publik.</footer>
+  <footer>Statis &amp; tanpa tracking — buka langsung dari disk, atau jalankan <span style="color:var(--ink)">node server.mjs</span> → localhost:8080. Ethers.js v6 · RPC publik.</footer>
 </div>
 
 <script>
@@ -373,6 +406,10 @@ const PRESET_ABI = [
   "function feeTake() view returns (uint256)",
   "function feeMake() view returns (uint256)",
   "function admin() view returns (address)",
+  "function order(address tokenGet, uint256 amountGet, address tokenGive, uint256 amountGive, uint256 expires, uint256 nonce)",
+  "function cancelOrder(address tokenGet, uint256 amountGet, address tokenGive, uint256 amountGive, uint256 expires, uint256 nonce, uint8 v, bytes32 r, bytes32 s)",
+  "function availableVolume(address tokenGet, uint256 amountGet, address tokenGive, uint256 amountGive, uint256 expires, uint256 nonce, address user, uint8 v, bytes32 r, bytes32 s) view returns (uint256)",
+  "function amountFilled(address tokenGet, uint256 amountGet, address tokenGive, uint256 amountGive, uint256 expires, uint256 nonce, address user, uint8 v, bytes32 r, bytes32 s) view returns (uint256)",
   "event Trade(address tokenGet, uint256 amountGet, address tokenGive, uint256 amountGive, address get, address give)",
   "event Deposit(address token, address user, uint256 amount, uint256 balance)",
   "event Withdraw(address token, address user, uint256 amount, uint256 balance)",
@@ -459,7 +496,7 @@ async function loadContract() {
     setStatus(st, "Contract dimuat ✓  " + fns.length + " fungsi, " + evs.length + " event. Bytecode: " +
       ((code.length - 2) / 2).toLocaleString("id-ID") + " byte.", "ok");
 
-    ["secBalance", "secPrice", "secWithdraw", "secExplorer"].forEach(id => $(id).hidden = false);
+    ["secBalance", "secPrice", "secOrderbook", "secWithdraw", "secExplorer"].forEach(id => $(id).hidden = false);
     buildEventSelect(evs);
     buildExplorer(fns);
   } catch (e) {
@@ -497,7 +534,7 @@ async function checkBalance() {
     setStatus(st, "Saldo di contract: " + human + " " + meta.symbol + "\nMentah (untuk withdraw): " + raw.toString(), "ok");
   } catch (e) {
     setStatus(st, "Gagal: " + (e.shortMessage || e.message) +
-      "\nJika ABI-nya preset, contract ini mungkin memakai nama fungsi lain — cek panel 5.", "err");
+      "\nJika ABI-nya preset, contract ini mungkin memakai nama fungsi lain — cek panel 6.", "err");
   }
 }
 
@@ -579,7 +616,116 @@ async function renderTradeTable(logs) {
   wrap.innerHTML = "<table>" + head + rows.join("") + "</table>";
 }
 
-// ── 4. wallet + withdraw ───────────────────────────────
+// ── 4. orderbook ───────────────────────────────────────
+async function scanOrderbook() {
+  const st = $("obStatus");
+  const wrap = $("obTables");
+  const token = $("obToken").value.trim();
+  if (!ethers.isAddress(token)) { setStatus(st, "Masukkan alamat token yang valid.", "err"); return; }
+  const span = parseInt($("obRange").value.replace(/\D/g, ""), 10) || 50000;
+  try {
+    const latest = await S.provider.getBlockNumber();
+    const from = Math.max(0, latest - span);
+    setStatus(st, "Memindai event Order dari blok " + from.toLocaleString("id-ID") + " → " + latest.toLocaleString("id-ID") + " …", "info");
+    const logs = await S.contract.queryFilter("Order", from, latest);
+
+    const meta = await tokenMeta(token);
+    const tl = token.toLowerCase();
+    const buys = [], sells = [];
+    let expired = 0;
+    for (const log of logs) {
+      const a = log.args;
+      const get = a.tokenGet.toLowerCase(), give = a.tokenGive.toLowerCase();
+      const isBuy  = get === tl  && give === ZERO;
+      const isSell = give === tl && get === ZERO;
+      if (!isBuy && !isSell) continue;
+      if (a.expires <= BigInt(latest)) { expired++; continue; }
+      const o = { args: a, block: log.blockNumber, tx: log.transactionHash };
+      if (isBuy) buys.push(o); else sells.push(o);
+    }
+
+    if (!buys.length && !sells.length) {
+      wrap.style.display = "none";
+      setStatus(st, logs.length.toLocaleString("id-ID") + " event Order dipindai; tidak ada order " + meta.symbol +
+        "/ETH yang masih aktif dalam rentang ini" + (expired ? " (" + expired + " sudah kedaluwarsa)" : "") +
+        ". DEX yang mati umumnya tidak punya order hidup — perbesar rentang blok bila ingin melihat jejak lama.", "info");
+      return;
+    }
+
+    // verifikasi sisa volume on-chain (availableVolume); order terisi/batal → 0
+    setStatus(st, "Memverifikasi sisa volume " + (buys.length + sells.length) + " order ke contract …", "info");
+    let canVerify = false;
+    try { canVerify = S.iface.hasFunction("availableVolume(address,uint256,address,uint256,uint256,uint256,address,uint8,bytes32,bytes32)"); } catch (_) {}
+    async function remainingOf(o) {
+      if (!canVerify) return null;
+      try {
+        const a = o.args;
+        return await S.contract.availableVolume(
+          a.tokenGet, a.amountGet, a.tokenGive, a.amountGive,
+          a.expires, a.nonce, a.user, 0, ethers.ZeroHash, ethers.ZeroHash);
+      } catch (_) { return null; }
+    }
+    const cap = list => list.slice(-60); // batasi panggilan RPC
+    const [buyRem, sellRem] = await Promise.all([
+      Promise.all(cap(buys).map(remainingOf)),
+      Promise.all(cap(sells).map(remainingOf)),
+    ]);
+
+    const rowsFor = (list, rems, side) => {
+      const out = [];
+      cap(list).forEach((o, i) => {
+        const a = o.args;
+        let priceEth, sizeToken, remToken;
+        if (side === "buy") {
+          // maker memberi ETH (amountGive), meminta token (amountGet)
+          sizeToken = Number(ethers.formatUnits(a.amountGet, meta.decimals));
+          priceEth  = Number(ethers.formatEther(a.amountGive)) / sizeToken;
+          remToken  = rems[i] === null ? null : Number(ethers.formatUnits(rems[i], meta.decimals));
+        } else {
+          // maker memberi token (amountGive), meminta ETH (amountGet)
+          sizeToken = Number(ethers.formatUnits(a.amountGive, meta.decimals));
+          priceEth  = Number(ethers.formatEther(a.amountGet)) / sizeToken;
+          // availableVolume dalam satuan amountGet (ETH) → konversi ke token
+          remToken  = rems[i] === null ? null
+            : Number(ethers.formatEther(rems[i])) / (priceEth || 1);
+        }
+        if (remToken !== null && remToken <= 0) return; // terisi penuh / dibatalkan
+        out.push({ priceEth, sizeToken, remToken, user: a.user, block: o.block, tx: o.tx });
+      });
+      out.sort((x, y) => side === "buy" ? y.priceEth - x.priceEth : x.priceEth - y.priceEth);
+      return out;
+    };
+    const bids = rowsFor(buys, buyRem, "buy");
+    const asks = rowsFor(sells, sellRem, "sell");
+
+    const fmt = (n, d) => n.toLocaleString("id-ID", { maximumFractionDigits: d });
+    const table = (rows, side) => {
+      if (!rows.length) return "<div class='ob-empty'>Tidak ada order " + (side === "buy" ? "buy" : "sell") + " aktif.</div>";
+      const total = rows.reduce((s, r) => s + (r.remToken ?? r.sizeToken), 0);
+      return "<div class='scroll'><table>" +
+        "<tr><th>Harga (ETH)</th><th>Sisa (" + meta.symbol + ")</th><th>Ukuran awal</th><th>Maker</th><th>Blok</th></tr>" +
+        rows.map(r =>
+          "<tr><td class='price'>" + r.priceEth.toPrecision(6) + "</td>" +
+          "<td class='num'>" + (r.remToken === null ? "?" : fmt(r.remToken, 4)) + "</td>" +
+          "<td class='num'>" + fmt(r.sizeToken, 4) + "</td>" +
+          "<td><a href='https://etherscan.io/address/" + r.user + "' target='_blank' rel='noopener'>" + r.user.slice(0, 10) + "…</a></td>" +
+          "<td class='num'>" + r.block.toLocaleString("id-ID") + "</td></tr>").join("") +
+        "</table></div><div class='total'>Total kedalaman: " + fmt(total, 4) + " " + meta.symbol + " (" + rows.length + " order)</div>";
+    };
+    wrap.style.display = "grid";
+    wrap.innerHTML =
+      "<div class='ob-side buy'><h3>Buy · maker membeli " + meta.symbol + "</h3>" + table(bids, "buy") + "</div>" +
+      "<div class='ob-side sell'><h3>Sell · maker menjual " + meta.symbol + "</h3>" + table(asks, "sell") + "</div>";
+    setStatus(st, "Order aktif: " + bids.length + " buy, " + asks.length + " sell" +
+      (expired ? " · " + expired + " kedaluwarsa disaring" : "") +
+      (canVerify ? " · sisa volume terverifikasi on-chain." : " · ABI tanpa availableVolume — sisa volume tidak diverifikasi."), "ok");
+  } catch (e) {
+    setStatus(st, "Gagal memindai orderbook: " + (e.shortMessage || e.message) +
+      "\nRPC publik membatasi rentang getLogs — coba angka blok lebih kecil.", "err");
+  }
+}
+
+// ── 5. wallet + withdraw ───────────────────────────────
 async function connectWallet() {
   const info = $("walletInfo");
   if (!window.ethereum) {
@@ -613,7 +759,7 @@ async function doWithdraw() {
     setStatus(st, "✓ Berhasil di blok " + rc.blockNumber.toLocaleString("id-ID") + "\nhttps://etherscan.io/tx/" + tx.hash, "ok");
   } catch (e) {
     setStatus(st, "Gagal: " + (e.shortMessage || e.message) +
-      "\nJika contract memakai nama fungsi withdraw yang berbeda, panggil lewat panel 5.", "err");
+      "\nJika contract memakai nama fungsi withdraw yang berbeda, panggil lewat panel 6.", "err");
   }
 }
 
@@ -680,7 +826,7 @@ function buildExplorer(fns) {
           const res = await S.contract[fn.name](...args);
           out.textContent = formatResult(res);
         } else {
-          if (!S.signer) throw new Error("Hubungkan wallet dulu (panel 4).");
+          if (!S.signer) throw new Error("Hubungkan wallet dulu (panel 5).");
           const overrides = {};
           if (inputs.payableField && inputs.payableField.value.trim()) overrides.value = inputs.payableField.value.trim();
           const tx = await S.contract.connect(S.signer)[fn.name](...args, overrides);
@@ -711,6 +857,7 @@ $("btnRpc").addEventListener("click", connectRpc);
 $("btnLoad").addEventListener("click", loadContract);
 $("btnBalance").addEventListener("click", checkBalance);
 $("btnScan").addEventListener("click", scanEvents);
+$("btnOrderbook").addEventListener("click", scanOrderbook);
 $("btnWallet").addEventListener("click", connectWallet);
 $("btnWithdraw").addEventListener("click", doWithdraw);
 $("abiSource").addEventListener("change", () => {

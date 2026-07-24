@@ -10,14 +10,24 @@ lewat jendela baru — yaitu file ini.
 
 ## Cara menjalankan
 
-Tidak perlu server, tidak perlu install apa pun:
+**Disarankan — lewat server lokal** (MetaMask paling stabil di `http://localhost`):
 
-1. Buka `dex-ui/index.html` langsung di browser (klik dua kali, atau `File → Open`).
-   Gunakan browser yang sudah terpasang MetaMask/Rabby jika ingin menarik dana.
-2. Panel **1 · Koneksi**: klik **Hubungkan** (RPC publik gratis sudah terisi),
-   lalu masukkan alamat smart contract DEX dan klik **Muat Contract**.
-3. Panel-panel berikutnya akan muncul otomatis: cek saldo, pindai harga/trade,
-   tarik dana, dan explorer semua fungsi contract.
+```bash
+cd dex-ui
+node server.mjs          # butuh Node.js 18+, tanpa dependensi apa pun
+# buka http://localhost:8080
+```
+
+Alternatif tanpa Node: `python3 -m http.server 8080` dari folder `dex-ui`,
+atau buka `index.html` langsung di browser (klik dua kali) — semua fitur baca
+tetap jalan dari `file://`, hanya sebagian wallet yang rewel di mode itu.
+
+Lalu:
+
+1. Panel **1 · Koneksi**: klik **Hubungkan** (RPC publik gratis sudah terisi),
+   alamat EtherDelta 2 dan preset ABI sudah default — klik **Muat Contract**.
+2. Panel-panel berikutnya muncul otomatis: cek saldo, harga/trade, orderbook
+   buy/sell, tarik dana, dan explorer semua fungsi contract.
 
 > Indikator hijau berdenyut di kanan atas menampilkan nomor blok Ethereum terbaru —
 > bukti live bahwa jaringan (dan contract Anda) masih berjalan.
@@ -65,6 +75,27 @@ baru** — artinya tidak ada harga pasar yang hidup di contract itu. Nilai token
 lebih relevan dilihat di pasar lain (CoinGecko, DEX lain seperti Uniswap). Yang
 terpenting dari contract lama ini biasanya bukan harganya, melainkan **saldo Anda
 yang masih tersimpan** (panel 2) dan **cara menariknya** (panel 4).
+
+## Melihat ukuran order buy & sell (orderbook)
+
+Panel 4 memindai event `Order` on-chain untuk satu token, lalu menyusun dua sisi:
+
+- **Buy** — maker membayar ETH untuk membeli token (`tokenGet` = token,
+  `tokenGive` = ETH). Ukuran = jumlah token yang diminta.
+- **Sell** — maker menjual token untuk ETH (`tokenGive` = token,
+  `tokenGet` = ETH). Ukuran = jumlah token yang ditawarkan.
+
+Untuk tiap order, sisa volume diverifikasi langsung ke contract lewat
+`availableVolume(...)` — order yang sudah terisi penuh, dibatalkan, atau
+kedaluwarsa (blok `expires` terlewati) otomatis disaring. Tabel diurutkan
+seperti orderbook sungguhan (buy tertinggi dulu, sell terendah dulu), lengkap
+dengan total kedalaman per sisi.
+
+Batasan yang perlu diketahui: orderbook EtherDelta dulunya **mayoritas
+off-chain** — order ditandatangani dan disimpan di server etherdelta.com yang
+kini mati. Yang bisa direkonstruksi dari blockchain hanyalah order yang
+dipasang on-chain lewat fungsi `order()`. Pada DEX yang sudah lama mati,
+wajar bila kedua sisi kosong.
 
 ## Menarik dana
 
