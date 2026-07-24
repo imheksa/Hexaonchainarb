@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orderbox Salvage Console — Ethereum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="./ethers.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #10161f;
+    --panel: #161e2a;
+    --panel-2: #1b2534;
+    --line: #263344;
+    --ink: #dce5f0;
+    --ink-dim: #8294ab;
+    --amber: #f0a832;
+    --amber-dim: #8a6420;
+    --teal: #4fd1c5;
+    --red: #e5646b;
+    --green: #67c988;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+    --disp: "Space Grotesk", system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scrollbar-color: var(--line) var(--bg); }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--disp);
+    font-size: 15px;
+    line-height: 1.55;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* ── Header: the heartbeat ───────────────────────── */
+  header {
+    padding: 34px 0 26px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .brand h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .brand h1 em { font-style: normal; color: var(--amber); }
+  .brand p { color: var(--ink-dim); font-size: 14px; margin-top: 2px; }
+  .heartbeat {
+    font-family: var(--mono);
+    font-size: 13px;
+    text-align: right;
+    color: var(--ink-dim);
+  }
+  .heartbeat .block {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+    font-size: 17px;
+    color: var(--ink);
+  }
+  .pulse {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--red);
+    flex: none;
+  }
+  .pulse.alive {
+    background: var(--green);
+    animation: beat 2.4s ease-in-out infinite;
+  }
+  @keyframes beat {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(103, 201, 136, .45); }
+    50%      { box-shadow: 0 0 0 7px rgba(103, 201, 136, 0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pulse.alive { animation: none; }
+  }
+
+  /* ── Panels ──────────────────────────────────────── */
+  section {
+    margin-top: 28px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  section > h2 {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--amber);
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel-2);
+  }
+  .body { padding: 20px; }
+  .hint { color: var(--ink-dim); font-size: 13.5px; }
+  .hint a { color: var(--teal); }
+
+  label { display: block; font-size: 13px; color: var(--ink-dim); margin: 14px 0 5px; }
+  label:first-child { margin-top: 0; }
+  input[type=text], textarea, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 13.5px;
+    padding: 9px 11px;
+  }
+  input:focus, textarea:focus, select:focus, button:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 1px;
+  }
+  textarea { min-height: 96px; resize: vertical; }
+
+  button {
+    font-family: var(--disp);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 9px 18px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--ink-dim); }
+  button.primary {
+    background: var(--amber);
+    border-color: var(--amber);
+    color: #14100a;
+    font-weight: 700;
+  }
+  button.primary:hover { background: #ffbc45; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .row > .grow { flex: 1 1 220px; }
+  .row > button { flex: none; }
+  .mt { margin-top: 16px; }
+
+  .status {
+    font-family: var(--mono);
+    font-size: 13px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    white-space: pre-wrap;
+    word-break: break-all;
+    display: none;
+  }
+  .status.show { display: block; }
+  .status.ok    { border-color: var(--green); color: var(--green); }
+  .status.err   { border-color: var(--red);   color: var(--red); }
+  .status.info  { color: var(--ink-dim); }
+
+  /* function explorer */
+  .fn {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-top: 12px;
+    background: var(--bg);
+  }
+  .fn summary {
+    cursor: pointer;
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    list-style: none;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .fn summary::-webkit-details-marker { display: none; }
+  .fn summary::before { content: "▸"; color: var(--ink-dim); font-size: 11px; }
+  .fn[open] summary::before { content: "▾"; }
+  .fn .tag {
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .tag.read  { background: rgba(79,209,197,.12); color: var(--teal); }
+  .tag.write { background: rgba(240,168,50,.14); color: var(--amber); }
+  .fn .inner { padding: 4px 14px 14px; border-top: 1px solid var(--line); }
+  .result {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--teal);
+    margin-top: 10px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .result.err { color: var(--red); }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--ink-dim); font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: .07em; }
+  td a { color: var(--teal); text-decoration: none; }
+  td a:hover { text-decoration: underline; }
+  .scroll { overflow-x: auto; }
+  .num { font-variant-numeric: tabular-nums; }
+  .price { color: var(--amber); font-weight: 600; }
+
+  .warn {
+    margin-top: 28px;
+    border: 1px dashed var(--amber-dim);
+    border-radius: 10px;
+    padding: 14px 18px;
+    color: var(--ink-dim);
+    font-size: 13.5px;
+  }
+  .warn strong { color: var(--amber); }
+  footer { margin-top: 40px; color: var(--ink-dim); font-size: 12.5px; font-family: var(--mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <h1>Orderbox <em>Salvage</em> Console</h1>
+      <p>Domain DEX-nya boleh mati — contract-nya masih hidup di Ethereum.</p>
+    </div>
+    <div class="heartbeat">
+      <div class="block"><span class="pulse" id="pulse"></span><span id="blockNum">— belum terhubung —</span></div>
+      <div id="netName">Ethereum Mainnet</div>
+    </div>
+  </header>
+
+  <!-- 1. KONEKSI -->
+  <section>
+    <h2>1 · Koneksi ke Contract</h2>
+    <div class="body">
+      <div class="row">
+        <div class="grow">
+          <label for="rpcUrl">RPC Endpoint (publik, gratis)</label>
+          <input type="text" id="rpcUrl" value="https://ethereum-rpc.publicnode.com" spellcheck="false">
+        </div>
+        <button class="primary" id="btnRpc">Hubungkan</button>
+      </div>
+
+      <label for="contractAddr">Alamat smart contract DEX <span class="hint">(lihat riwayat transaksi lama Anda di Etherscan bila lupa)</span></label>
+      <input type="text" id="contractAddr" placeholder="0x…" spellcheck="false">
+
+      <label for="abiSource">Sumber ABI</label>
+      <div class="row">
+        <div class="grow">
+          <select id="abiSource">
+            <option value="etherscan">Ambil otomatis dari Etherscan (contract terverifikasi)</option>
+            <option value="preset">Preset DEX orderbook klasik (gaya EtherDelta)</option>
+            <option value="manual">Tempel ABI manual (JSON)</option>
+          </select>
+        </div>
+        <div class="grow" id="etherscanKeyWrap">
+          <label for="etherscanKey" style="margin-top:0">Etherscan API key (gratis di etherscan.io/apis)</label>
+          <input type="text" id="etherscanKey" placeholder="opsional tapi disarankan" spellcheck="false">
+        </div>
+        <button class="primary" id="btnLoad">Muat Contract</button>
+      </div>
+      <textarea id="abiManual" class="mt" placeholder='[{"type":"function","name":"balanceOf", …}]' style="display:none" spellcheck="false"></textarea>
+
+      <div class="status" id="connStatus"></div>
+    </div>
+  </section>
+
+  <!-- 2. SALDO -->
+  <section id="secBalance" hidden>
+    <h2>2 · Saldo Anda di Dalam Contract</h2>
+    <div class="body">
+      <p class="hint">DEX orderbook klasik menyimpan dana yang Anda deposit di dalam contract, dipetakan per (token, alamat). Fungsi yang umum: <code style="font-family:var(--mono)">balanceOf(token, user)</code>. Untuk saldo ETH, pakai token <span style="font-family:var(--mono)">0x000…000</span>.</p>
+      <div class="row mt">
+        <div class="grow">
+          <label for="balToken">Alamat token (kosongkan / 0x0 untuk ETH)</label>
+          <input type="text" id="balToken" placeholder="0x0000000000000000000000000000000000000000" spellcheck="false">
+        </div>
+        <div class="grow">
+          <label for="balUser">Alamat wallet Anda</label>
+          <input type="text" id="balUser" placeholder="0x…" spellcheck="false">
+        </div>
+        <button class="primary" id="btnBalance">Cek Saldo</button>
+      </div>
+      <div class="status" id="balStatus"></div>
+    </div>
+  </section>
+
+  <!-- 3. HARGA -->
+  <section id="secPrice" hidden>
+    <h2>3 · Harga &amp; Riwayat Trade Terakhir</h2>
+    <div class="body">
+      <p class="hint">Harga di DEX orderbook tidak tersimpan sebagai angka tunggal — ia terbentuk dari order &amp; trade. Konsol ini memindai event <span style="font-family:var(--mono)">Trade</span> pada rentang blok, lalu menghitung harga token/ETH dari tiap trade.</p>
+      <div class="row mt">
+        <div class="grow">
+          <label for="evName">Event yang dipindai</label>
+          <select id="evName"></select>
+        </div>
+        <div class="grow">
+          <label for="blockRange">Pindai berapa blok ke belakang (maks ~50.000 per pemindaian di RPC publik)</label>
+          <input type="text" id="blockRange" value="20000" spellcheck="false">
+        </div>
+        <button class="primary" id="btnScan">Pindai</button>
+      </div>
+      <div class="status" id="scanStatus"></div>
+      <div class="scroll mt" id="tradeTableWrap"></div>
+    </div>
+  </section>
+
+  <!-- 4. TARIK DANA -->
+  <section id="secWithdraw" hidden>
+    <h2>4 · Tarik Dana (butuh wallet)</h2>
+    <div class="body">
+      <p class="hint">Menarik dana adalah transaksi tulis — ditandatangani oleh wallet Anda sendiri (MetaMask/Rabby). Konsol ini <strong>tidak pernah</strong> meminta seed phrase atau private key.</p>
+      <div class="row mt">
+        <button class="primary" id="btnWallet">Hubungkan Wallet</button>
+        <span class="hint" id="walletInfo" style="align-self:center">belum terhubung</span>
+      </div>
+      <div class="row mt">
+        <div class="grow">
+          <label for="wdToken">Token (kosongkan / 0x0 untuk ETH)</label>
+          <input type="text" id="wdToken" placeholder="0x0000000000000000000000000000000000000000" spellcheck="false">
+        </div>
+        <div class="grow">
+          <label for="wdAmount">Jumlah (satuan terkecil / wei — hasil Cek Saldo bisa disalin apa adanya)</label>
+          <input type="text" id="wdAmount" placeholder="mis. 1000000000000000000" spellcheck="false">
+        </div>
+        <button class="primary" id="btnWithdraw">Withdraw</button>
+      </div>
+      <div class="status" id="wdStatus"></div>
+    </div>
+  </section>
+
+  <!-- 5. EXPLORER -->
+  <section id="secExplorer" hidden>
+    <h2>5 · Semua Fungsi Contract</h2>
+    <div class="body">
+      <p class="hint">Setiap fungsi dari ABI, siap dipanggil. <span class="tag read" style="font-family:var(--disp)">read</span> gratis dan instan; <span class="tag write" style="font-family:var(--disp)">write</span> mengirim transaksi lewat wallet. Argumen array/tuple ditulis sebagai JSON.</p>
+      <div id="fnList"></div>
+    </div>
+  </section>
+
+  <div class="warn">
+    <strong>Aturan keselamatan.</strong> Jangan pernah memasukkan seed phrase atau private key ke situs mana pun, termasuk halaman ini (dan halaman ini memang tidak punya kolom untuk itu). Verifikasi alamat contract lewat riwayat transaksi Anda di Etherscan sebelum mengirim transaksi apa pun. Uji dulu dengan jumlah kecil.
+  </div>
+
+  <footer>Berkas tunggal, tanpa server, tanpa tracking — jalankan langsung dari disk. Ethers.js v6 · RPC publik.</footer>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const ZERO = "0x0000000000000000000000000000000000000000";
+
+// ABI preset: DEX orderbook klasik gaya EtherDelta (deposit/withdraw + Trade events)
+const PRESET_ABI = [
+  "function balanceOf(address token, address user) view returns (uint256)",
+  "function deposit() payable",
+  "function withdraw(uint256 amount)",
+  "function depositToken(address token, uint256 amount)",
+  "function withdrawToken(address token, uint256 amount)",
+  "function feeTake() view returns (uint256)",
+  "function feeMake() view returns (uint256)",
+  "function admin() view returns (address)",
+  "event Trade(address tokenGet, uint256 amountGet, address tokenGive, uint256 amountGive, address get, address give)",
+  "event Deposit(address token, address user, uint256 amount, uint256 balance)",
+  "event Withdraw(address token, address user, uint256 amount, uint256 balance)",
+  "event Order(address tokenGet, uint256 amountGet, address tokenGive, uint256 amountGive, uint256 expires, uint256 nonce, address user)",
+  "event Cancel(address tokenGet, uint256 amountGet, address tokenGive, uint256 amountGive, uint256 expires, uint256 nonce, address user, uint8 v, bytes32 r, bytes32 s)"
+];
+
+const ERC20_ABI = [
+  "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)"
+];
+
+const S = { provider: null, contract: null, iface: null, signer: null, tokenCache: new Map() };
+
+function setStatus(el, msg, kind) {
+  el.textContent = msg;
+  el.className = "status show " + (kind || "info");
+}
+
+// ── 1. RPC + heartbeat ─────────────────────────────────
+let blockTimer = null;
+async function connectRpc() {
+  const url = $("rpcUrl").value.trim();
+  setStatus($("connStatus"), "Menghubungkan ke " + url + " …", "info");
+  try {
+    const provider = new ethers.JsonRpcProvider(url);
+    const [net, block] = await Promise.all([provider.getNetwork(), provider.getBlockNumber()]);
+    S.provider = provider;
+    $("netName").textContent = net.chainId === 1n ? "Ethereum Mainnet" : ("chain id " + net.chainId);
+    updateBlock(block);
+    clearInterval(blockTimer);
+    blockTimer = setInterval(async () => {
+      try { updateBlock(await S.provider.getBlockNumber()); } catch (_) {}
+    }, 12000);
+    setStatus($("connStatus"), "Terhubung. Blok terbaru: " + block.toLocaleString("id-ID"), "ok");
+  } catch (e) {
+    setStatus($("connStatus"), "Gagal terhubung: " + (e.shortMessage || e.message), "err");
+  }
+}
+function updateBlock(n) {
+  $("pulse").className = "pulse alive";
+  $("blockNum").textContent = "blok #" + n.toLocaleString("id-ID");
+}
+
+// ── ABI loading ────────────────────────────────────────
+async function fetchAbiFromEtherscan(addr) {
+  const key = $("etherscanKey").value.trim();
+  const url = "https://api.etherscan.io/v2/api?chainid=1&module=contract&action=getabi&address="
+            + addr + (key ? "&apikey=" + encodeURIComponent(key) : "");
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.status !== "1") {
+    throw new Error(data.result || "Etherscan menolak permintaan. Contract mungkin belum terverifikasi — coba preset atau tempel ABI manual.");
+  }
+  return JSON.parse(data.result);
+}
+
+async function loadContract() {
+  const st = $("connStatus");
+  if (!S.provider) { setStatus(st, "Hubungkan RPC dulu (tombol di atas).", "err"); return; }
+  const addr = $("contractAddr").value.trim();
+  if (!ethers.isAddress(addr)) { setStatus(st, "Alamat contract tidak valid.", "err"); return; }
+
+  try {
+    const code = await S.provider.getCode(addr);
+    if (code === "0x") { setStatus(st, "Tidak ada bytecode di alamat itu — bukan contract di jaringan ini.", "err"); return; }
+
+    let abi;
+    const src = $("abiSource").value;
+    if (src === "etherscan") {
+      setStatus(st, "Mengambil ABI dari Etherscan …", "info");
+      abi = await fetchAbiFromEtherscan(addr);
+    } else if (src === "preset") {
+      abi = PRESET_ABI;
+    } else {
+      abi = JSON.parse($("abiManual").value);
+    }
+
+    S.iface = new ethers.Interface(abi);
+    S.contract = new ethers.Contract(addr, S.iface, S.provider);
+
+    const fns = S.iface.fragments.filter(f => f.type === "function");
+    const evs = S.iface.fragments.filter(f => f.type === "event");
+    setStatus(st, "Contract dimuat ✓  " + fns.length + " fungsi, " + evs.length + " event. Bytecode: " +
+      ((code.length - 2) / 2).toLocaleString("id-ID") + " byte.", "ok");
+
+    ["secBalance", "secPrice", "secWithdraw", "secExplorer"].forEach(id => $(id).hidden = false);
+    buildEventSelect(evs);
+    buildExplorer(fns);
+  } catch (e) {
+    setStatus(st, "Gagal memuat: " + (e.shortMessage || e.message), "err");
+  }
+}
+
+// ── token metadata helper ──────────────────────────────
+async function tokenMeta(addr) {
+  if (addr === ZERO) return { symbol: "ETH", decimals: 18 };
+  const k = addr.toLowerCase();
+  if (S.tokenCache.has(k)) return S.tokenCache.get(k);
+  let meta = { symbol: addr.slice(0, 8) + "…", decimals: 18 };
+  try {
+    const t = new ethers.Contract(addr, ERC20_ABI, S.provider);
+    const [sym, dec] = await Promise.all([t.symbol(), t.decimals()]);
+    meta = { symbol: sym, decimals: Number(dec) };
+  } catch (_) {}
+  S.tokenCache.set(k, meta);
+  return meta;
+}
+
+// ── 2. balance ─────────────────────────────────────────
+async function checkBalance() {
+  const st = $("balStatus");
+  const token = $("balToken").value.trim() || ZERO;
+  const user = $("balUser").value.trim();
+  if (!ethers.isAddress(user)) { setStatus(st, "Alamat wallet tidak valid.", "err"); return; }
+  if (!ethers.isAddress(token)) { setStatus(st, "Alamat token tidak valid.", "err"); return; }
+  try {
+    setStatus(st, "Membaca balanceOf(" + token.slice(0, 10) + "…, " + user.slice(0, 10) + "…) …", "info");
+    const raw = await S.contract.balanceOf(token, user);
+    const meta = await tokenMeta(token);
+    const human = ethers.formatUnits(raw, meta.decimals);
+    setStatus(st, "Saldo di contract: " + human + " " + meta.symbol + "\nMentah (untuk withdraw): " + raw.toString(), "ok");
+  } catch (e) {
+    setStatus(st, "Gagal: " + (e.shortMessage || e.message) +
+      "\nJika ABI-nya preset, contract ini mungkin memakai nama fungsi lain — cek panel 5.", "err");
+  }
+}
+
+// ── 3. trades / price ──────────────────────────────────
+function buildEventSelect(evs) {
+  const sel = $("evName");
+  sel.innerHTML = "";
+  let tradeIdx = -1;
+  evs.forEach((ev, i) => {
+    const o = document.createElement("option");
+    o.value = ev.name;
+    o.textContent = ev.name + "(" + ev.inputs.map(x => x.type).join(",") + ")";
+    if (/trade/i.test(ev.name) && tradeIdx < 0) tradeIdx = i;
+    sel.appendChild(o);
+  });
+  if (tradeIdx >= 0) sel.selectedIndex = tradeIdx;
+}
+
+async function scanEvents() {
+  const st = $("scanStatus");
+  const evName = $("evName").value;
+  if (!evName) { setStatus(st, "ABI ini tidak punya event untuk dipindai.", "err"); return; }
+  const span = parseInt($("blockRange").value.replace(/\D/g, ""), 10) || 20000;
+  try {
+    const latest = await S.provider.getBlockNumber();
+    const from = Math.max(0, latest - span);
+    setStatus(st, "Memindai " + evName + " dari blok " + from.toLocaleString("id-ID") + " → " + latest.toLocaleString("id-ID") + " …", "info");
+    const logs = await S.contract.queryFilter(evName, from, latest);
+    if (!logs.length) {
+      setStatus(st, "Tidak ada event " + evName + " dalam " + span.toLocaleString("id-ID") + " blok terakhir (~" +
+        Math.round(span * 12 / 86400) + " hari). DEX yang mati biasanya sepi — perbesar rentang, atau lihat riwayat penuh di Etherscan.", "info");
+      $("tradeTableWrap").innerHTML = "";
+      return;
+    }
+    setStatus(st, logs.length + " event ditemukan. Menyusun tabel …", "ok");
+    await renderTradeTable(logs.slice(-100).reverse());
+    setStatus(st, logs.length + " event " + evName + " ditemukan (ditampilkan " + Math.min(100, logs.length) + " terbaru).", "ok");
+  } catch (e) {
+    setStatus(st, "Gagal memindai: " + (e.shortMessage || e.message) +
+      "\nRPC publik membatasi rentang getLogs — coba angka blok lebih kecil.", "err");
+  }
+}
+
+async function renderTradeTable(logs) {
+  const wrap = $("tradeTableWrap");
+  let isTrade = false;
+  try {
+    const frag = logs.length && logs[0].fragment;
+    isTrade = !!frag && frag.inputs.some(i => i.name === "tokenGet") && frag.inputs.some(i => i.name === "tokenGive");
+  } catch (_) {}
+  const rows = [];
+  for (const log of logs) {
+    const a = log.args;
+    if (isTrade) {
+      const [mGet, mGive] = await Promise.all([tokenMeta(a.tokenGet), tokenMeta(a.tokenGive)]);
+      const amtGet = Number(ethers.formatUnits(a.amountGet, mGet.decimals));
+      const amtGive = Number(ethers.formatUnits(a.amountGive, mGive.decimals));
+      // harga token/ETH: salah satu sisi trade adalah ETH (0x0)
+      let price = "—";
+      if (a.tokenGet === ZERO && amtGive > 0)      price = (amtGet / amtGive).toPrecision(6) + " ETH/" + mGive.symbol;
+      else if (a.tokenGive === ZERO && amtGet > 0) price = (amtGive / amtGet).toPrecision(6) + " ETH/" + mGet.symbol;
+      rows.push("<tr><td class='num'>" + log.blockNumber.toLocaleString("id-ID") + "</td>" +
+        "<td>" + amtGet.toLocaleString("id-ID", { maximumFractionDigits: 6 }) + " " + mGet.symbol + "</td>" +
+        "<td>" + amtGive.toLocaleString("id-ID", { maximumFractionDigits: 6 }) + " " + mGive.symbol + "</td>" +
+        "<td class='price'>" + price + "</td>" +
+        "<td><a href='https://etherscan.io/tx/" + log.transactionHash + "' target='_blank' rel='noopener'>" +
+        log.transactionHash.slice(0, 12) + "…</a></td></tr>");
+    } else {
+      const vals = a ? Array.from(a).map(v => typeof v === "bigint" ? v.toString() : String(v)).join(", ") : "";
+      rows.push("<tr><td class='num'>" + log.blockNumber.toLocaleString("id-ID") + "</td>" +
+        "<td colspan='3' style='white-space:normal;word-break:break-all'>" + vals + "</td>" +
+        "<td><a href='https://etherscan.io/tx/" + log.transactionHash + "' target='_blank' rel='noopener'>" +
+        log.transactionHash.slice(0, 12) + "…</a></td></tr>");
+    }
+  }
+  const head = isTrade
+    ? "<tr><th>Blok</th><th>Diterima (get)</th><th>Diberikan (give)</th><th>Harga</th><th>Tx</th></tr>"
+    : "<tr><th>Blok</th><th colspan='3'>Data event</th><th>Tx</th></tr>";
+  wrap.innerHTML = "<table>" + head + rows.join("") + "</table>";
+}
+
+// ── 4. wallet + withdraw ───────────────────────────────
+async function connectWallet() {
+  const info = $("walletInfo");
+  if (!window.ethereum) {
+    info.textContent = "Tidak ada wallet terdeteksi. Pasang MetaMask/Rabby, atau buka file ini lewat browser ber-wallet.";
+    return;
+  }
+  try {
+    const bp = new ethers.BrowserProvider(window.ethereum);
+    await bp.send("eth_requestAccounts", []);
+    S.signer = await bp.getSigner();
+    const addr = await S.signer.getAddress();
+    info.textContent = "✓ " + addr;
+    if (!$("balUser").value) $("balUser").value = addr;
+  } catch (e) {
+    info.textContent = "Ditolak: " + (e.shortMessage || e.message);
+  }
+}
+
+async function doWithdraw() {
+  const st = $("wdStatus");
+  if (!S.signer) { setStatus(st, "Hubungkan wallet dulu.", "err"); return; }
+  const token = $("wdToken").value.trim() || ZERO;
+  const amount = $("wdAmount").value.trim();
+  if (!/^\d+$/.test(amount)) { setStatus(st, "Jumlah harus bilangan bulat dalam satuan terkecil (wei).", "err"); return; }
+  try {
+    const c = S.contract.connect(S.signer);
+    setStatus(st, "Menyiapkan transaksi — periksa & setujui di wallet Anda …", "info");
+    const tx = token === ZERO ? await c.withdraw(amount) : await c.withdrawToken(token, amount);
+    setStatus(st, "Terkirim: " + tx.hash + "\nMenunggu konfirmasi …", "info");
+    const rc = await tx.wait();
+    setStatus(st, "✓ Berhasil di blok " + rc.blockNumber.toLocaleString("id-ID") + "\nhttps://etherscan.io/tx/" + tx.hash, "ok");
+  } catch (e) {
+    setStatus(st, "Gagal: " + (e.shortMessage || e.message) +
+      "\nJika contract memakai nama fungsi withdraw yang berbeda, panggil lewat panel 5.", "err");
+  }
+}
+
+// ── 5. explorer ────────────────────────────────────────
+function parseArg(type, raw) {
+  const v = raw.trim();
+  if (type.endsWith("]") || type.startsWith("tuple")) return JSON.parse(v);
+  if (type === "bool") return /^(true|1)$/i.test(v);
+  return v; // ethers v6 menerima string untuk uint/int/address/bytes
+}
+
+function buildExplorer(fns) {
+  const list = $("fnList");
+  list.innerHTML = "";
+  const sorted = [...fns].sort((a, b) => {
+    const ra = a.stateMutability === "view" || a.stateMutability === "pure";
+    const rb = b.stateMutability === "view" || b.stateMutability === "pure";
+    return ra === rb ? a.name.localeCompare(b.name) : (ra ? -1 : 1);
+  });
+  for (const fn of sorted) {
+    const isRead = fn.stateMutability === "view" || fn.stateMutability === "pure";
+    const det = document.createElement("details");
+    det.className = "fn";
+    const sig = fn.name + "(" + fn.inputs.map(i => i.type + (i.name ? " " + i.name : "")).join(", ") + ")";
+    det.innerHTML =
+      "<summary><span class='tag " + (isRead ? "read'>read" : "write'>write") + "</span>" + sig + "</summary>" +
+      "<div class='inner'></div>";
+    const inner = det.querySelector(".inner");
+
+    const inputs = [];
+    fn.inputs.forEach((inp, i) => {
+      const lab = document.createElement("label");
+      lab.textContent = (inp.name || "arg" + i) + " · " + inp.type;
+      const field = document.createElement("input");
+      field.type = "text";
+      field.spellcheck = false;
+      field.placeholder = inp.type;
+      inner.append(lab, field);
+      inputs.push({ type: inp.type, field });
+    });
+    if (fn.payable) {
+      const lab = document.createElement("label");
+      lab.textContent = "nilai ETH yang dikirim (wei)";
+      const field = document.createElement("input");
+      field.type = "text"; field.placeholder = "0";
+      inner.append(lab, field);
+      inputs.payableField = field;
+    }
+
+    const btn = document.createElement("button");
+    btn.className = "primary mt";
+    btn.style.marginTop = "12px";
+    btn.textContent = isRead ? "Panggil" : "Kirim Transaksi";
+    const out = document.createElement("div");
+    out.className = "result";
+    inner.append(btn, out);
+
+    btn.addEventListener("click", async () => {
+      out.className = "result";
+      out.textContent = "…";
+      try {
+        const args = inputs.map(x => parseArg(x.type, x.field.value));
+        if (isRead) {
+          const res = await S.contract[fn.name](...args);
+          out.textContent = formatResult(res);
+        } else {
+          if (!S.signer) throw new Error("Hubungkan wallet dulu (panel 4).");
+          const overrides = {};
+          if (inputs.payableField && inputs.payableField.value.trim()) overrides.value = inputs.payableField.value.trim();
+          const tx = await S.contract.connect(S.signer)[fn.name](...args, overrides);
+          out.textContent = "Terkirim: " + tx.hash + " — menunggu …";
+          const rc = await tx.wait();
+          out.textContent = "✓ Blok " + rc.blockNumber + " · https://etherscan.io/tx/" + tx.hash;
+        }
+      } catch (e) {
+        out.className = "result err";
+        out.textContent = e.shortMessage || e.message;
+      }
+    });
+    list.appendChild(det);
+  }
+}
+
+function formatResult(res) {
+  const fmt = v => {
+    if (typeof v === "bigint") return v.toString();
+    if (Array.isArray(v)) return "[" + v.map(fmt).join(", ") + "]";
+    return String(v);
+  };
+  return fmt(res);
+}
+
+// ── wiring ─────────────────────────────────────────────
+$("btnRpc").addEventListener("click", connectRpc);
+$("btnLoad").addEventListener("click", loadContract);
+$("btnBalance").addEventListener("click", checkBalance);
+$("btnScan").addEventListener("click", scanEvents);
+$("btnWallet").addEventListener("click", connectWallet);
+$("btnWithdraw").addEventListener("click", doWithdraw);
+$("abiSource").addEventListener("change", () => {
+  const v = $("abiSource").value;
+  $("abiManual").style.display = v === "manual" ? "block" : "none";
+  $("etherscanKeyWrap").style.display = v === "etherscan" ? "block" : "none";
+});
+</script>
+</body>
+</html>
