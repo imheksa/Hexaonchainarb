@@ -228,13 +228,16 @@
   .book-hd .last.up { color: var(--green); } .book-hd .last.down { color: var(--red); }
   .tape-hd h3, .book-hd .lbl { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); font-weight: 500; }
 
-  .lvl-hd, .lvl, .trade {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
+  .lvl-hd, .lvl, .trade-hd, .trade {
+    display: grid;
     font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums;
     padding: 3px 12px; column-gap: 8px;
   }
-  .lvl-hd { color: var(--ink-dim); font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; padding: 7px 12px; }
-  .lvl-hd span:not(:first-child), .lvl span:not(:first-child), .trade span:not(:first-child) { text-align: right; }
+  .lvl-hd, .lvl { grid-template-columns: 1fr 1fr 1fr; }
+  .trade-hd, .trade { grid-template-columns: 1fr 1fr 1.1fr 0.7fr; }
+  .lvl-hd, .trade-hd { color: var(--ink-dim); font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; padding: 7px 12px; }
+  .lvl-hd span:not(:first-child), .lvl span:not(:first-child),
+  .trade-hd span:not(:first-child), .trade span:not(:first-child) { text-align: right; }
   .lvl { position: relative; }
   .lvl .depth { position: absolute; top: 0; bottom: 0; right: 0; z-index: 0; opacity: .16; }
   .lvl.ask .depth { background: var(--red); }
@@ -405,7 +408,7 @@
         <div class="book" id="obBook"></div>
         <div class="tape">
           <div class="tape-hd"><h3>Recent Trades</h3><span class="lbl" id="obTradeCount"></span></div>
-          <div class="lvl-hd"><span>Harga (ETH)</span><span id="obSizeHd">Ukuran</span><span>Blok</span></div>
+          <div class="trade-hd"><span>Harga (ETH)</span><span id="obSizeHd">Ukuran</span><span>Pihak (taker)</span><span>Blok</span></div>
           <div class="tape-scroll" id="obTape"></div>
         </div>
       </div>
@@ -849,7 +852,9 @@ async function scanOrderbook() {
         price = Number(ethers.formatEther(a.amountGet)) / size; side = "buy";
       } else continue;
       if (!isFinite(price) || price <= 0) continue;
-      trades.push({ price, size, side, block: log.blockNumber, tx: log.transactionHash });
+      // EtherDelta Trade: `get` = maker (pemasang order), `give` = taker (pemanggil trade())
+      trades.push({ price, size, side, block: log.blockNumber, tx: log.transactionHash,
+        taker: a.give, maker: a.get });
     }
     trades.sort((a, b) => b.block - a.block);
     const last = trades[0];
@@ -921,9 +926,11 @@ function render_book(el, bids, asks, meta, last, dir) {
 function render_tape(el, trades, meta) {
   if (!trades.length) { el.innerHTML = "<div class='ob-empty'>Belum ada trade on-chain untuk pasangan ini dalam rentang blok yang dipindai.</div>"; return; }
   el.innerHTML = trades.map(t =>
-    "<div class='trade " + t.side + "'>" +
+    "<div class='trade " + t.side + "' title='Taker (" + (t.side === "buy" ? "pembeli" : "penjual") + "): " + t.taker + "\nMaker (lawan): " + t.maker + "'>" +
     "<span class='px'>" + fmtPx(t.price) + "</span>" +
     "<span>" + fmtNum(t.size) + "</span>" +
+    "<span><a href='https://etherscan.io/address/" + t.taker + "' target='_blank' rel='noopener'>" +
+      (t.side === "buy" ? "▲ " : "▼ ") + t.taker.slice(0, 8) + "…</a></span>" +
     "<span><a href='https://etherscan.io/tx/" + t.tx + "' target='_blank' rel='noopener'>" + t.block.toLocaleString("id-ID") + "</a></span></div>"
   ).join("");
 }
