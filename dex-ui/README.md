@@ -108,6 +108,22 @@ wajar bila kedua sisi kosong.
 Jika nama fungsi withdraw contract Anda berbeda dari pola klasik, gunakan panel 5
 (explorer) — semua fungsi dari ABI bisa dipanggil dari sana.
 
+## Hosting di GitHub Pages
+
+Workflow `.github/workflows/deploy-pages.yml` men-deploy folder ini ke GitHub
+Pages (`https://imheksa.github.io/Hexaonchainarb/`) setiap ada push yang
+menyentuh `dex-ui/`.
+
+**Syarat dari GitHub:** Pages hanya tersedia untuk repo **public** (atau repo
+private dengan paket GitHub Pro/Team). Jika repo ini masih private di paket
+gratis, langkah `configure-pages` akan gagal dengan "Resource not accessible
+by integration". Solusinya: jadikan repo public lewat
+*Settings → General → Danger Zone → Change visibility*, lalu re-run workflow
+yang gagal di tab *Actions*. Perlu diingat: seluruh isi repo (termasuk kode
+bot arbitrase) ikut menjadi publik — pastikan tidak ada rahasia yang
+ter-commit sebelum melakukannya. Alternatif yang sepenuhnya privat: jalankan
+`node server.mjs` di komputer sendiri.
+
 ## Alternatif tanpa UI ini
 
 Untuk contract terverifikasi, Etherscan sendiri menyediakan tab
