@@ -114,14 +114,24 @@ Workflow `.github/workflows/deploy-pages.yml` men-deploy folder ini ke GitHub
 Pages (`https://imheksa.github.io/Hexaonchainarb/`) setiap ada push yang
 menyentuh `dex-ui/`.
 
-**Syarat dari GitHub:** Pages hanya tersedia untuk repo **public** (atau repo
-private dengan paket GitHub Pro/Team). Jika repo ini masih private di paket
-gratis, langkah `configure-pages` akan gagal dengan "Resource not accessible
-by integration". Solusinya: jadikan repo public lewat
-*Settings → General → Danger Zone → Change visibility*, lalu re-run workflow
-yang gagal di tab *Actions*. Perlu diingat: seluruh isi repo (termasuk kode
-bot arbitrase) ikut menjadi publik — pastikan tidak ada rahasia yang
-ter-commit sebelum melakukannya. Alternatif yang sepenuhnya privat: jalankan
+**Dua syarat dari GitHub (dua-duanya wajib):**
+
+1. **Repo harus public** (atau private dengan paket GitHub Pro/Team). Jadikan
+   public lewat *Settings → General → Danger Zone → Change visibility*. Ingat:
+   seluruh isi repo (termasuk kode bot arbitrase) ikut menjadi publik —
+   pastikan tidak ada rahasia yang ter-commit.
+
+2. **Aktifkan Pages dengan sumber "GitHub Actions" satu kali.** Buka
+   *Settings → Pages → Build and deployment → Source* lalu pilih
+   **GitHub Actions**. Langkah ini membuat situs Pages-nya; tanpa ini workflow
+   gagal dengan "Create Pages site failed — Resource not accessible by
+   integration" karena token workflow tidak berwenang membuat situs dari nol.
+
+Setelah kedua langkah itu, jalankan ulang workflow (tab *Actions* → run yang
+gagal → *Re-run jobs*, atau cukup push apa pun yang menyentuh `dex-ui/`). Situs
+akan live di `https://imheksa.github.io/Hexaonchainarb/`.
+
+Alternatif yang sepenuhnya privat, tanpa mengubah apa pun di GitHub: jalankan
 `node server.mjs` di komputer sendiri.
 
 ## Alternatif tanpa UI ini
