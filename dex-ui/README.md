@@ -22,6 +22,21 @@ Tidak perlu server, tidak perlu install apa pun:
 > Indikator hijau berdenyut di kanan atas menampilkan nomor blok Ethereum terbaru —
 > bukti live bahwa jaringan (dan contract Anda) masih berjalan.
 
+## Contract yang sudah dikonfigurasi: EtherDelta 2
+
+Alamat `0x8d12A197cB00D4747a1fe03395095ce2A5CC6819` sudah terisi sebagai default.
+Ini adalah contract **EtherDelta 2** (label resmi di Etherscan), DEX orderbook
+klasik yang di-deploy 9 Februari 2017. Frontend etherdelta.com sudah lama mati,
+tetapi contract-nya tetap berjalan dan masih menyimpan dana deposit jutaan dolar
+milik para penggunanya. ABI preset di UI ini adalah ABI EtherDelta, jadi pilihan
+**Preset EtherDelta** bekerja langsung tanpa API key.
+
+Cara menarik dana dari EtherDelta:
+
+- Saldo: `balanceOf(token, wallet_anda)` — panel 2 (untuk ETH, token = `0x0`)
+- Tarik ETH: `withdraw(jumlah_wei)` — panel 4 dengan kolom token kosong
+- Tarik token: `withdrawToken(alamat_token, jumlah)` — panel 4 dengan alamat token
+
 ## Lupa alamat contract-nya?
 
 1. Buka [etherscan.io](https://etherscan.io) dan cari alamat wallet Anda.

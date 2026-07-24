@@ -253,15 +253,15 @@
         <button class="primary" id="btnRpc">Hubungkan</button>
       </div>
 
-      <label for="contractAddr">Alamat smart contract DEX <span class="hint">(lihat riwayat transaksi lama Anda di Etherscan bila lupa)</span></label>
-      <input type="text" id="contractAddr" placeholder="0x…" spellcheck="false">
+      <label for="contractAddr">Alamat smart contract DEX <span class="hint">(default: EtherDelta 2 — ganti bila contract Anda berbeda)</span></label>
+      <input type="text" id="contractAddr" value="0x8d12A197cB00D4747a1fe03395095ce2A5CC6819" spellcheck="false">
 
       <label for="abiSource">Sumber ABI</label>
       <div class="row">
         <div class="grow">
           <select id="abiSource">
+            <option value="preset" selected>Preset EtherDelta (cocok persis untuk EtherDelta 2, tanpa API key)</option>
             <option value="etherscan">Ambil otomatis dari Etherscan (contract terverifikasi)</option>
-            <option value="preset">Preset DEX orderbook klasik (gaya EtherDelta)</option>
             <option value="manual">Tempel ABI manual (JSON)</option>
           </select>
         </div>
@@ -718,6 +718,7 @@ $("abiSource").addEventListener("change", () => {
   $("abiManual").style.display = v === "manual" ? "block" : "none";
   $("etherscanKeyWrap").style.display = v === "etherscan" ? "block" : "none";
 });
+$("abiSource").dispatchEvent(new Event("change"));
 </script>
 </body>
 </html>
