@@ -1,3 +1,4 @@
+# Butuh repo public (atau GitHub Pro untuk repo private) — lihat dex-ui/README.md
 name: Deploy Orderbox Salvage Console ke GitHub Pages
 
 on:
