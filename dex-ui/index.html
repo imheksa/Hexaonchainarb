@@ -380,17 +380,25 @@
   <section id="secOrderbook" hidden>
     <h2>4 · Orderbook — Bid / Ask &amp; Riwayat Trade</h2>
     <div class="body">
-      <p class="hint">Orderbook langsung dari blockchain: sisi <b>ask</b> (jual) dan <b>bid</b> (beli) direkonstruksi dari event <span style="font-family:var(--mono)">Order</span> on-chain dan diverifikasi sisa volumenya ke contract, plus tape <b>trade</b> yang benar-benar tereksekusi. Semua angka asli on-chain — tidak ada order sintetis.</p>
+      <p class="hint">Orderbook langsung dari blockchain: sisi <b>ask</b>/<b>bid</b> dari event <span style="font-family:var(--mono)">Order</span> on-chain, plus tape <b>trade</b> (event <span style="font-family:var(--mono)">Trade</span> = eksekusi <span style="font-family:var(--mono)">trade()</span> — inilah transaksi jual/beli yang terlihat di block explorer). Semua asli on-chain. Rentang besar dipecah otomatis jadi beberapa panggilan RPC.</p>
       <div class="row mt">
         <div class="grow">
           <label for="obToken">Pasangan token / ETH</label>
           <input type="text" id="obToken" list="tokenList" value="0xB8c77482e45F1F44dE1745F52C74426C631bDD52" spellcheck="false">
         </div>
         <div class="grow">
-          <label for="obRange">Pindai berapa blok ke belakang</label>
+          <label for="obFrom">Dari blok <span class="hint">(kosong = terbaru; era EtherDelta ≈ 4.6jt–7jt)</span></label>
+          <input type="text" id="obFrom" placeholder="mis. 4600000" spellcheck="false">
+        </div>
+        <div class="grow">
+          <label for="obRange">Jumlah blok dipindai</label>
           <input type="text" id="obRange" value="50000" spellcheck="false">
         </div>
         <button class="primary" id="btnOrderbook">Muat Pasar</button>
+      </div>
+      <div class="row">
+        <button id="btnEraEtherDelta">Era EtherDelta 2017–18</button>
+        <a id="lnkEtherscan" href="https://etherscan.io/address/0x8d12A197cB00D4747a1fe03395095ce2A5CC6819#events" target="_blank" rel="noopener" style="align-self:center;color:var(--teal);font-size:13px">Lihat semua event Trade di Etherscan ↗</a>
       </div>
       <div class="status" id="obStatus"></div>
       <div class="book-wrap mt" id="obMarket" style="display:none">
@@ -737,23 +745,44 @@ function fmtPx(n) {
   return n.toPrecision(4); // harga kecil: cukup 4 angka penting
 }
 
+// getLogs dipecah jadi potongan aman (RPC publik membatasi rentang per panggilan).
+async function queryChunked(name, from, to, onProgress) {
+  const CHUNK = 9500, MAX = 120;
+  let all = [], f = from, n = 0;
+  while (f <= to && n < MAX) {
+    const t = Math.min(f + CHUNK - 1, to);
+    try { all = all.concat(await S.contract.queryFilter(name, f, t)); } catch (_) {}
+    if (onProgress) onProgress(t);
+    f = t + 1; n++;
+  }
+  return { logs: all, covered: Math.min(from + MAX * CHUNK - 1, to), capped: n >= MAX && f <= to };
+}
+
 async function scanOrderbook() {
   const st = $("obStatus");
   const market = $("obMarket");
   const token = $("obToken").value.trim();
   if (!ethers.isAddress(token)) { setStatus(st, "Masukkan alamat token yang valid.", "err"); return; }
   const span = parseInt($("obRange").value.replace(/\D/g, ""), 10) || 50000;
+  const fromInput = parseInt($("obFrom").value.replace(/\D/g, ""), 10);
   try {
     const latest = await S.provider.getBlockNumber();
-    const from = Math.max(0, latest - span);
+    const from = Number.isFinite(fromInput) && fromInput > 0
+      ? fromInput
+      : Math.max(0, latest - span);
+    const to = Number.isFinite(fromInput) && fromInput > 0
+      ? Math.min(latest, fromInput + span)
+      : latest;
     const tl = token.toLowerCase();
-    setStatus(st, "Memuat pasar dari blok " + from.toLocaleString("id-ID") + " → " + latest.toLocaleString("id-ID") + " …", "info");
+    const prog = t => setStatus(st, "Memindai blok " + from.toLocaleString("id-ID") + " → " +
+      t.toLocaleString("id-ID") + " / " + to.toLocaleString("id-ID") + " …", "info");
 
-    // Ambil Order + Trade sekaligus
-    const [orderLogs, tradeLogs] = await Promise.all([
-      S.contract.queryFilter("Order", from, latest).catch(() => []),
-      S.contract.queryFilter("Trade", from, latest).catch(() => []),
+    // Ambil Order + Trade sekaligus (masing-masing dipecah)
+    const [orderRes, tradeRes] = await Promise.all([
+      queryChunked("Order", from, to, prog),
+      queryChunked("Trade", from, to),
     ]);
+    const orderLogs = orderRes.logs, tradeLogs = tradeRes.logs;
     const meta = await tokenMeta(token);
 
     // ── sisi order (bid/ask) ──
@@ -833,9 +862,11 @@ async function scanOrderbook() {
     $("obTradeCount").textContent = trades.length ? trades.length.toLocaleString("id-ID") + " trade" : "";
     market.style.display = "grid";
 
-    setStatus(st, "Pasar " + meta.symbol + "/ETH: " + bids.length + " bid, " + asks.length + " ask, " +
-      trades.length + " trade" + (expired ? " · " + expired + " order kedaluwarsa disaring" : "") +
-      (canVerify ? " · sisa volume terverifikasi on-chain." : "."), "ok");
+    const capNote = (orderRes.capped || tradeRes.capped)
+      ? " · rentang dibatasi (naikkan 'Dari blok' untuk lanjut memindai)" : "";
+    setStatus(st, "Pasar " + meta.symbol + "/ETH (blok " + from.toLocaleString("id-ID") + "–" + to.toLocaleString("id-ID") + "): " +
+      bids.length + " bid, " + asks.length + " ask, " + trades.length + " trade" +
+      (expired ? " · " + expired + " order kedaluwarsa disaring" : "") + capNote, "ok");
   } catch (e) {
     setStatus(st, "Gagal memuat pasar: " + (e.shortMessage || e.message) +
       "\nRPC publik membatasi rentang getLogs — coba angka blok lebih kecil.", "err");
@@ -1031,6 +1062,9 @@ $("btnBalance").addEventListener("click", checkBalance);
 $("btnTotalLocked").addEventListener("click", totalLocked);
 $("btnScan").addEventListener("click", scanEvents);
 $("btnOrderbook").addEventListener("click", scanOrderbook);
+$("btnEraEtherDelta").addEventListener("click", () => {
+  $("obFrom").value = "4600000"; $("obRange").value = "300000"; scanOrderbook();
+});
 $("btnWallet").addEventListener("click", connectWallet);
 $("btnWithdraw").addEventListener("click", doWithdraw);
 $("abiSource").addEventListener("change", () => {
