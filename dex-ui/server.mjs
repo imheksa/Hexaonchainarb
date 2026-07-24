@@ -1,5 +1,6 @@
 // Server statis zero-dependency untuk Orderbox Salvage Console.
 // Jalankan: node server.mjs   →   http://localhost:8080
+// Untuk hosting publik, folder ini juga di-deploy ke GitHub Pages via Actions.
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
