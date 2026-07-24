@@ -400,8 +400,15 @@
         <button class="primary" id="btnOrderbook">Muat Pasar</button>
       </div>
       <div class="row">
-        <button id="btnEraEtherDelta">Era EtherDelta 2017–18</button>
-        <a id="lnkEtherscan" href="https://etherscan.io/address/0x8d12A197cB00D4747a1fe03395095ce2A5CC6819#events" target="_blank" rel="noopener" style="align-self:center;color:var(--teal);font-size:13px">Lihat semua event Trade di Etherscan ↗</a>
+        <button class="primary" id="btnAllTrades">⚡ Semua trade otomatis (via Etherscan)</button>
+        <button id="btnEraEtherDelta">Era EtherDelta 2017–18 (via RPC)</button>
+        <a id="lnkEtherscan" href="https://etherscan.io/address/0x8d12A197cB00D4747a1fe03395095ce2A5CC6819#events" target="_blank" rel="noopener" style="align-self:center;color:var(--teal);font-size:13px">Buka di Etherscan ↗</a>
+      </div>
+      <div class="row">
+        <div class="grow">
+          <label for="obEsKey">Etherscan API key <span class="hint">(gratis di etherscan.io/apis — sangat disarankan untuk "Semua trade otomatis")</span></label>
+          <input type="text" id="obEsKey" placeholder="opsional tapi disarankan" spellcheck="false">
+        </div>
       </div>
       <div class="status" id="obStatus"></div>
       <div class="book-wrap mt" id="obMarket" style="display:none">
@@ -878,6 +885,81 @@ async function scanOrderbook() {
   }
 }
 
+// Riwayat trade penuh via Etherscan logs API — terindeks sejak 2017, tanpa setel blok.
+async function loadTradesEtherscan() {
+  const st = $("obStatus");
+  const market = $("obMarket");
+  const token = $("obToken").value.trim();
+  if (!ethers.isAddress(token)) { setStatus(st, "Alamat token tidak valid.", "err"); return; }
+  const tl = token.toLowerCase();
+  const contractAddr = $("contractAddr").value.trim();
+  const key = ($("obEsKey").value.trim() || $("etherscanKey").value.trim());
+  // topic0 = tanda tangan event Trade, dihitung dari ABI agar selalu tepat
+  const tradeFrag = S.iface.getEvent("Trade");
+  const TRADE_TOPIC0 = tradeFrag.topicHash;
+  const meta = await tokenMeta(token);
+  const trades = [];
+  let fromBlock = 0, calls = 0;
+  const MAXCALLS = 40, WANT = 500;
+  try {
+    while (calls < MAXCALLS && trades.length < WANT) {
+      const url = "https://api.etherscan.io/v2/api?chainid=1&module=logs&action=getLogs"
+        + "&address=" + contractAddr + "&topic0=" + TRADE_TOPIC0
+        + "&fromBlock=" + fromBlock + "&toBlock=latest&offset=1000&page=1&sort=asc"
+        + (key ? "&apikey=" + encodeURIComponent(key) : "");
+      setStatus(st, "Etherscan: mengambil trade sejak blok " + fromBlock.toLocaleString("id-ID") +
+        " · " + meta.symbol + " ditemukan: " + trades.length + " …", "info");
+      const res = await fetch(url);
+      const data = await res.json();
+      calls++;
+      if (data.status !== "1" || !Array.isArray(data.result)) {
+        if (String(data.result || data.message).match(/rate limit|Max/i))
+          throw new Error("Etherscan rate limit — masukkan API key gratis lalu coba lagi.");
+        break; // "No records found" → selesai
+      }
+      if (!data.result.length) break;
+      let lastBlock = fromBlock;
+      for (const log of data.result) {
+        lastBlock = parseInt(log.blockNumber, 16);
+        let a;
+        try { a = S.iface.decodeEventLog("Trade", log.data, log.topics); } catch (_) { continue; }
+        const get = a.tokenGet.toLowerCase(), give = a.tokenGive.toLowerCase();
+        let price, size, side;
+        if (get === tl && give === ZERO) {
+          size = Number(ethers.formatUnits(a.amountGet, meta.decimals));
+          price = Number(ethers.formatEther(a.amountGive)) / size; side = "sell";
+        } else if (give === tl && get === ZERO) {
+          size = Number(ethers.formatUnits(a.amountGive, meta.decimals));
+          price = Number(ethers.formatEther(a.amountGet)) / size; side = "buy";
+        } else continue;
+        if (!isFinite(price) || price <= 0) continue;
+        trades.push({ price, size, side, block: lastBlock, tx: log.transactionHash, taker: a.give, maker: a.get });
+      }
+      if (data.result.length < 1000) break; // halaman terakhir
+      fromBlock = lastBlock + 1;
+    }
+    trades.sort((a, b) => b.block - a.block);
+    const last = trades[0];
+    const prev = trades.find(t => t.price !== last?.price);
+    const dir = last && prev ? (last.price >= prev.price ? "up" : "down") : "";
+    render_book($("obBook"), [], [], meta, last, dir);
+    render_tape($("obTape"), trades.slice(0, 200), meta);
+    $("obSizeHd").textContent = "Ukuran (" + meta.symbol + ")";
+    $("obTradeCount").textContent = trades.length ? trades.length.toLocaleString("id-ID") + " trade" : "";
+    market.style.display = "grid";
+    if (!trades.length) {
+      setStatus(st, "Etherscan: tidak ada trade " + meta.symbol + "/ETH ditemukan pada contract ini.", "info");
+    } else {
+      const capped = calls >= MAXCALLS && trades.length >= WANT;
+      setStatus(st, "Etherscan: " + trades.length.toLocaleString("id-ID") + " trade " + meta.symbol +
+        "/ETH dimuat" + (capped ? " (dibatasi " + WANT + " terbaru dari pemindaian awal)" : " — riwayat penuh") +
+        ". Ditampilkan 200 terbaru.", "ok");
+    }
+  } catch (e) {
+    setStatus(st, "Gagal via Etherscan: " + (e.shortMessage || e.message), "err");
+  }
+}
+
 function render_book(el, bids, asks, meta, last, dir) {
   const maxCum = (() => {
     let c = 0, m = 0;
@@ -1072,6 +1154,7 @@ $("btnOrderbook").addEventListener("click", scanOrderbook);
 $("btnEraEtherDelta").addEventListener("click", () => {
   $("obFrom").value = "4600000"; $("obRange").value = "300000"; scanOrderbook();
 });
+$("btnAllTrades").addEventListener("click", loadTradesEtherscan);
 $("btnWallet").addEventListener("click", connectWallet);
 $("btnWithdraw").addEventListener("click", doWithdraw);
 $("abiSource").addEventListener("change", () => {
