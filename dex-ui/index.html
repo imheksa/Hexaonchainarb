@@ -297,7 +297,16 @@
       <div class="row mt">
         <div class="grow">
           <label for="balToken">Alamat token (kosongkan / 0x0 untuk ETH)</label>
-          <input type="text" id="balToken" placeholder="0x0000000000000000000000000000000000000000" spellcheck="false">
+          <input type="text" id="balToken" list="tokenList" value="0xB8c77482e45F1F44dE1745F52C74426C631bDD52" spellcheck="false">
+          <datalist id="tokenList">
+            <option value="0x0000000000000000000000000000000000000000">ETH</option>
+            <option value="0xB8c77482e45F1F44dE1745F52C74426C631bDD52">BNB (Binance Coin, ERC-20)</option>
+            <option value="0xd26114cd6EE289AccF82350c8d8487fedB8A0C07">OMG (OmiseGO)</option>
+            <option value="0xE41d2489571d322189246DaFA5ebDe1F4699F498">ZRX (0x)</option>
+            <option value="0x86Fa049857E0209aa7D9e616F7eb3b3B78ECfdb0">EOS</option>
+            <option value="0x1985365e9f78359a9B6AD760e32412f4a445E862">REP (Augur)</option>
+            <option value="0xdAC17F958D2ee523a2206206994597C13D831ec7">USDT (Tether)</option>
+          </datalist>
         </div>
         <div class="grow">
           <label for="balUser">Alamat wallet Anda</label>
@@ -334,11 +343,13 @@
   <section id="secOrderbook" hidden>
     <h2>4 · Orderbook — Ukuran Order Buy &amp; Sell</h2>
     <div class="body">
-      <p class="hint">Memindai event <span style="font-family:var(--mono)">Order</span> on-chain untuk satu token, memisahkan sisi <b>buy</b> (maker membayar ETH untuk token) dan <b>sell</b> (maker menjual token untuk ETH), lalu memverifikasi sisa volume tiap order langsung ke contract — order yang kedaluwarsa, terisi penuh, atau dibatalkan tersaring otomatis. Catatan jujur: orderbook EtherDelta dulunya mayoritas off-chain (servernya sudah mati), jadi hanya order yang dipasang on-chain yang bisa terlihat di sini.</p>
+      <div class="warn" style="margin-top:0;margin-bottom:16px">
+        <strong>Kenapa orderbook bisa kosong.</strong> Orderbook EtherDelta <b>tidak pernah disimpan di blockchain</b> — order buy/sell adalah pesan yang ditandatangani lalu dikirim ke server etherdelta.com, dan server itu sudah mati. Yang tersimpan di smart contract hanyalah deposit, saldo, dan trade yang sudah tereksekusi. Artinya: seandainya UI EtherDelta asli dihidupkan lagi dan diarahkan ke contract ini, orderbook-nya <b>juga akan kosong</b>. Panel ini hanya bisa menampilkan order yang kebetulan dipasang lewat fungsi <span style="font-family:var(--mono)">order()</span> on-chain — jarang dipakai, jadi untuk kebanyakan token hasilnya nihil. Untuk menyelamatkan aset, yang Anda butuhkan bukan orderbook, melainkan <b>Cek Saldo (panel 2)</b> lalu <b>Tarik Dana (panel 5)</b>.</div>
+      <p class="hint">Memindai event <span style="font-family:var(--mono)">Order</span> on-chain untuk satu token, memisahkan sisi <b>buy</b> (maker membayar ETH untuk token) dan <b>sell</b> (maker menjual token untuk ETH), lalu memverifikasi sisa volume tiap order langsung ke contract — order kedaluwarsa/terisi/dibatalkan tersaring otomatis.</p>
       <div class="row mt">
         <div class="grow">
           <label for="obToken">Alamat token</label>
-          <input type="text" id="obToken" placeholder="0x…" spellcheck="false">
+          <input type="text" id="obToken" list="tokenList" value="0xB8c77482e45F1F44dE1745F52C74426C631bDD52" spellcheck="false">
         </div>
         <div class="grow">
           <label for="obRange">Pindai berapa blok ke belakang</label>
@@ -363,7 +374,7 @@
       <div class="row mt">
         <div class="grow">
           <label for="wdToken">Token (kosongkan / 0x0 untuk ETH)</label>
-          <input type="text" id="wdToken" placeholder="0x0000000000000000000000000000000000000000" spellcheck="false">
+          <input type="text" id="wdToken" list="tokenList" placeholder="0x0000000000000000000000000000000000000000" spellcheck="false">
         </div>
         <div class="grow">
           <label for="wdAmount">Jumlah (satuan terkecil / wei — hasil Cek Saldo bisa disalin apa adanya)</label>
@@ -553,7 +564,14 @@ async function checkBalance() {
     const raw = await S.contract.balanceOf(token, user);
     const meta = await tokenMeta(token);
     const human = ethers.formatUnits(raw, meta.decimals);
-    setStatus(st, "Saldo di contract: " + human + " " + meta.symbol + "\nMentah (untuk withdraw): " + raw.toString(), "ok");
+    if (raw > 0n) {
+      // siapkan panel Withdraw otomatis agar recovery jadi satu langkah
+      $("wdToken").value = token === ZERO ? "" : token;
+      $("wdAmount").value = raw.toString();
+    }
+    setStatus(st, "Saldo di contract: " + human + " " + meta.symbol +
+      "\nMentah (untuk withdraw): " + raw.toString() +
+      (raw > 0n ? "\n→ Kolom Token & Jumlah di panel 5 sudah diisi otomatis. Hubungkan wallet lalu Withdraw." : ""), "ok");
   } catch (e) {
     setStatus(st, "Gagal: " + (e.shortMessage || e.message) +
       "\nJika ABI-nya preset, contract ini mungkin memakai nama fungsi lain — cek panel 6.", "err");
