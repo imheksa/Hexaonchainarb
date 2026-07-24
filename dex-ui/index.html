@@ -215,17 +215,50 @@
   .num { font-variant-numeric: tabular-nums; }
   .price { color: var(--amber); font-weight: 600; }
 
-  .ob-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media (max-width: 760px) { .ob-grid { grid-template-columns: 1fr; } }
-  .ob-side { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); overflow: hidden; }
-  .ob-side h3 {
-    font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
-    padding: 10px 12px; border-bottom: 1px solid var(--line);
+  /* ── Professional orderbook ──────────────────────── */
+  .book-wrap { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; }
+  @media (max-width: 820px) { .book-wrap { grid-template-columns: 1fr; } }
+  .book, .tape { border: 1px solid var(--line); border-radius: 8px; background: var(--bg); overflow: hidden; }
+  .book-hd, .tape-hd {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--panel-2);
   }
-  .ob-side.buy h3  { color: var(--green); }
-  .ob-side.sell h3 { color: var(--red); }
-  .ob-side .total { padding: 8px 12px; font-family: var(--mono); font-size: 12px; color: var(--ink-dim); border-top: 1px solid var(--line); }
-  .ob-empty { padding: 16px 12px; color: var(--ink-dim); font-size: 13px; }
+  .book-hd .pair { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+  .book-hd .last { font-family: var(--mono); font-size: 15px; font-weight: 600; }
+  .book-hd .last.up { color: var(--green); } .book-hd .last.down { color: var(--red); }
+  .tape-hd h3, .book-hd .lbl { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); font-weight: 500; }
+
+  .lvl-hd, .lvl, .trade {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums;
+    padding: 3px 12px; column-gap: 8px;
+  }
+  .lvl-hd { color: var(--ink-dim); font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; padding: 7px 12px; }
+  .lvl-hd span:not(:first-child), .lvl span:not(:first-child), .trade span:not(:first-child) { text-align: right; }
+  .lvl { position: relative; }
+  .lvl .depth { position: absolute; top: 0; bottom: 0; right: 0; z-index: 0; opacity: .16; }
+  .lvl.ask .depth { background: var(--red); }
+  .lvl.bid .depth { background: var(--green); }
+  .lvl > span { position: relative; z-index: 1; }
+  .lvl.ask .px { color: var(--red); }
+  .lvl.bid .px { color: var(--green); }
+  .lvl:hover { background: rgba(255,255,255,.03); }
+
+  .spread {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 12px; margin: 2px 0; font-family: var(--mono); font-size: 12px;
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    background: var(--panel); color: var(--ink-dim);
+  }
+  .spread b { color: var(--ink); font-weight: 600; }
+  .ob-side-lbl { padding: 6px 12px 2px; font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; }
+  .ob-side-lbl.ask { color: var(--red); } .ob-side-lbl.bid { color: var(--green); }
+  .ob-empty { padding: 14px 12px; color: var(--ink-dim); font-size: 12.5px; line-height: 1.5; }
+
+  .trade { padding: 3px 12px; }
+  .trade.buy .px { color: var(--green); } .trade.sell .px { color: var(--red); }
+  .trade a { color: var(--ink-dim); text-decoration: none; } .trade a:hover { color: var(--teal); }
+  .tape-scroll { max-height: 360px; overflow-y: auto; }
 
   .warn {
     margin-top: 28px;
@@ -341,24 +374,33 @@
 
   <!-- 4. ORDERBOOK -->
   <section id="secOrderbook" hidden>
-    <h2>4 · Orderbook — Ukuran Order Buy &amp; Sell</h2>
+    <h2>4 · Orderbook — Bid / Ask &amp; Riwayat Trade</h2>
     <div class="body">
-      <div class="warn" style="margin-top:0;margin-bottom:16px">
-        <strong>Kenapa orderbook bisa kosong.</strong> Orderbook EtherDelta <b>tidak pernah disimpan di blockchain</b> — order buy/sell adalah pesan yang ditandatangani lalu dikirim ke server etherdelta.com, dan server itu sudah mati. Yang tersimpan di smart contract hanyalah deposit, saldo, dan trade yang sudah tereksekusi. Artinya: seandainya UI EtherDelta asli dihidupkan lagi dan diarahkan ke contract ini, orderbook-nya <b>juga akan kosong</b>. Panel ini hanya bisa menampilkan order yang kebetulan dipasang lewat fungsi <span style="font-family:var(--mono)">order()</span> on-chain — jarang dipakai, jadi untuk kebanyakan token hasilnya nihil. Untuk menyelamatkan aset, yang Anda butuhkan bukan orderbook, melainkan <b>Cek Saldo (panel 2)</b> lalu <b>Tarik Dana (panel 5)</b>.</div>
-      <p class="hint">Memindai event <span style="font-family:var(--mono)">Order</span> on-chain untuk satu token, memisahkan sisi <b>buy</b> (maker membayar ETH untuk token) dan <b>sell</b> (maker menjual token untuk ETH), lalu memverifikasi sisa volume tiap order langsung ke contract — order kedaluwarsa/terisi/dibatalkan tersaring otomatis.</p>
+      <p class="hint">Orderbook langsung dari blockchain: sisi <b>ask</b> (jual) dan <b>bid</b> (beli) direkonstruksi dari event <span style="font-family:var(--mono)">Order</span> on-chain dan diverifikasi sisa volumenya ke contract, plus tape <b>trade</b> yang benar-benar tereksekusi. Semua angka asli on-chain — tidak ada order sintetis.</p>
       <div class="row mt">
         <div class="grow">
-          <label for="obToken">Alamat token</label>
+          <label for="obToken">Pasangan token / ETH</label>
           <input type="text" id="obToken" list="tokenList" value="0xB8c77482e45F1F44dE1745F52C74426C631bDD52" spellcheck="false">
         </div>
         <div class="grow">
           <label for="obRange">Pindai berapa blok ke belakang</label>
           <input type="text" id="obRange" value="50000" spellcheck="false">
         </div>
-        <button class="primary" id="btnOrderbook">Pindai Order</button>
+        <button class="primary" id="btnOrderbook">Muat Pasar</button>
       </div>
       <div class="status" id="obStatus"></div>
-      <div class="ob-grid mt" id="obTables" style="display:none"></div>
+      <div class="book-wrap mt" id="obMarket" style="display:none">
+        <div class="book" id="obBook"></div>
+        <div class="tape">
+          <div class="tape-hd"><h3>Recent Trades</h3><span class="lbl" id="obTradeCount"></span></div>
+          <div class="lvl-hd"><span>Harga (ETH)</span><span id="obSizeHd">Ukuran</span><span>Blok</span></div>
+          <div class="tape-scroll" id="obTape"></div>
+        </div>
+      </div>
+      <details class="fn" style="margin-top:14px">
+        <summary>Kenapa sisi bid/ask sering kosong di EtherDelta?</summary>
+        <div class="inner"><p class="hint" style="margin-top:10px">Orderbook EtherDelta dulunya <b>off-chain</b> — order ditandatangani lalu disimpan di server etherdelta.com yang kini mati, jadi tidak tersimpan di blockchain. Yang bisa direkonstruksi hanyalah order yang dipasang lewat fungsi <span style="font-family:var(--mono)">order()</span> on-chain (jarang) dan <b>seluruh trade yang tereksekusi</b> (tape di sebelah kanan — inilah data harga yang nyata). Untuk DEX orderbook on-chain lain, kedua sisi buku akan terisi penuh.</p></div>
+      </details>
     </div>
   </section>
 
@@ -656,113 +698,172 @@ async function renderTradeTable(logs) {
   wrap.innerHTML = "<table>" + head + rows.join("") + "</table>";
 }
 
-// ── 4. orderbook ───────────────────────────────────────
+// ── 4. orderbook (bid/ask + trades tape) ───────────────
+const fmtNum = (n, d = 4) => n.toLocaleString("id-ID", { maximumFractionDigits: d });
+function fmtPx(n) {
+  if (!isFinite(n) || n <= 0) return "—";
+  if (n >= 1) return n.toLocaleString("id-ID", { maximumFractionDigits: 6 });
+  return n.toPrecision(4); // harga kecil: cukup 4 angka penting
+}
+
 async function scanOrderbook() {
   const st = $("obStatus");
-  const wrap = $("obTables");
+  const market = $("obMarket");
   const token = $("obToken").value.trim();
   if (!ethers.isAddress(token)) { setStatus(st, "Masukkan alamat token yang valid.", "err"); return; }
   const span = parseInt($("obRange").value.replace(/\D/g, ""), 10) || 50000;
   try {
     const latest = await S.provider.getBlockNumber();
     const from = Math.max(0, latest - span);
-    setStatus(st, "Memindai event Order dari blok " + from.toLocaleString("id-ID") + " → " + latest.toLocaleString("id-ID") + " …", "info");
-    const logs = await S.contract.queryFilter("Order", from, latest);
-
-    const meta = await tokenMeta(token);
     const tl = token.toLowerCase();
+    setStatus(st, "Memuat pasar dari blok " + from.toLocaleString("id-ID") + " → " + latest.toLocaleString("id-ID") + " …", "info");
+
+    // Ambil Order + Trade sekaligus
+    const [orderLogs, tradeLogs] = await Promise.all([
+      S.contract.queryFilter("Order", from, latest).catch(() => []),
+      S.contract.queryFilter("Trade", from, latest).catch(() => []),
+    ]);
+    const meta = await tokenMeta(token);
+
+    // ── sisi order (bid/ask) ──
     const buys = [], sells = [];
     let expired = 0;
-    for (const log of logs) {
+    for (const log of orderLogs) {
       const a = log.args;
-      const get = a.tokenGet.toLowerCase(), give = a.tokenGive.toLowerCase();
-      const isBuy  = get === tl  && give === ZERO;
-      const isSell = give === tl && get === ZERO;
+      const isBuy  = a.tokenGet.toLowerCase() === tl  && a.tokenGive.toLowerCase() === ZERO;
+      const isSell = a.tokenGive.toLowerCase() === tl && a.tokenGet.toLowerCase() === ZERO;
       if (!isBuy && !isSell) continue;
       if (a.expires <= BigInt(latest)) { expired++; continue; }
-      const o = { args: a, block: log.blockNumber, tx: log.transactionHash };
-      if (isBuy) buys.push(o); else sells.push(o);
+      (isBuy ? buys : sells).push({ args: a, block: log.blockNumber, tx: log.transactionHash });
     }
-
-    if (!buys.length && !sells.length) {
-      wrap.style.display = "none";
-      setStatus(st, logs.length.toLocaleString("id-ID") + " event Order dipindai; tidak ada order " + meta.symbol +
-        "/ETH yang masih aktif dalam rentang ini" + (expired ? " (" + expired + " sudah kedaluwarsa)" : "") +
-        ". DEX yang mati umumnya tidak punya order hidup — perbesar rentang blok bila ingin melihat jejak lama.", "info");
-      return;
-    }
-
-    // verifikasi sisa volume on-chain (availableVolume); order terisi/batal → 0
-    setStatus(st, "Memverifikasi sisa volume " + (buys.length + sells.length) + " order ke contract …", "info");
     let canVerify = false;
     try { canVerify = S.iface.hasFunction("availableVolume(address,uint256,address,uint256,uint256,uint256,address,uint8,bytes32,bytes32)"); } catch (_) {}
-    async function remainingOf(o) {
+    const remainingOf = async o => {
       if (!canVerify) return null;
       try {
         const a = o.args;
-        return await S.contract.availableVolume(
-          a.tokenGet, a.amountGet, a.tokenGive, a.amountGive,
+        return await S.contract.availableVolume(a.tokenGet, a.amountGet, a.tokenGive, a.amountGive,
           a.expires, a.nonce, a.user, 0, ethers.ZeroHash, ethers.ZeroHash);
       } catch (_) { return null; }
-    }
-    const cap = list => list.slice(-60); // batasi panggilan RPC
+    };
+    const cap = list => list.slice(-60);
     const [buyRem, sellRem] = await Promise.all([
       Promise.all(cap(buys).map(remainingOf)),
       Promise.all(cap(sells).map(remainingOf)),
     ]);
-
     const rowsFor = (list, rems, side) => {
       const out = [];
       cap(list).forEach((o, i) => {
         const a = o.args;
-        let priceEth, sizeToken, remToken;
-        if (side === "buy") {
-          // maker memberi ETH (amountGive), meminta token (amountGet)
-          sizeToken = Number(ethers.formatUnits(a.amountGet, meta.decimals));
-          priceEth  = Number(ethers.formatEther(a.amountGive)) / sizeToken;
-          remToken  = rems[i] === null ? null : Number(ethers.formatUnits(rems[i], meta.decimals));
+        let price, size;
+        if (side === "bid") {
+          size  = Number(ethers.formatUnits(a.amountGet, meta.decimals));
+          price = Number(ethers.formatEther(a.amountGive)) / size;
+          if (rems[i] !== null) size = Number(ethers.formatUnits(rems[i], meta.decimals));
         } else {
-          // maker memberi token (amountGive), meminta ETH (amountGet)
-          sizeToken = Number(ethers.formatUnits(a.amountGive, meta.decimals));
-          priceEth  = Number(ethers.formatEther(a.amountGet)) / sizeToken;
-          // availableVolume dalam satuan amountGet (ETH) → konversi ke token
-          remToken  = rems[i] === null ? null
-            : Number(ethers.formatEther(rems[i])) / (priceEth || 1);
+          size  = Number(ethers.formatUnits(a.amountGive, meta.decimals));
+          price = Number(ethers.formatEther(a.amountGet)) / size;
+          if (rems[i] !== null) size = Number(ethers.formatEther(rems[i])) / (price || 1);
         }
-        if (remToken !== null && remToken <= 0) return; // terisi penuh / dibatalkan
-        out.push({ priceEth, sizeToken, remToken, user: a.user, block: o.block, tx: o.tx });
+        if (rems[i] !== null && size <= 0) return; // terisi penuh / dibatalkan
+        if (!isFinite(price) || price <= 0 || !isFinite(size) || size <= 0) return;
+        out.push({ price, size, user: a.user });
       });
-      out.sort((x, y) => side === "buy" ? y.priceEth - x.priceEth : x.priceEth - y.priceEth);
+      out.sort((x, y) => side === "bid" ? y.price - x.price : x.price - y.price);
       return out;
     };
-    const bids = rowsFor(buys, buyRem, "buy");
-    const asks = rowsFor(sells, sellRem, "sell");
+    const bids = rowsFor(buys, buyRem, "bid");
+    const asks = rowsFor(sells, sellRem, "ask");
 
-    const fmt = (n, d) => n.toLocaleString("id-ID", { maximumFractionDigits: d });
-    const table = (rows, side) => {
-      if (!rows.length) return "<div class='ob-empty'>Tidak ada order " + (side === "buy" ? "buy" : "sell") + " aktif.</div>";
-      const total = rows.reduce((s, r) => s + (r.remToken ?? r.sizeToken), 0);
-      return "<div class='scroll'><table>" +
-        "<tr><th>Harga (ETH)</th><th>Sisa (" + meta.symbol + ")</th><th>Ukuran awal</th><th>Maker</th><th>Blok</th></tr>" +
-        rows.map(r =>
-          "<tr><td class='price'>" + r.priceEth.toPrecision(6) + "</td>" +
-          "<td class='num'>" + (r.remToken === null ? "?" : fmt(r.remToken, 4)) + "</td>" +
-          "<td class='num'>" + fmt(r.sizeToken, 4) + "</td>" +
-          "<td><a href='https://etherscan.io/address/" + r.user + "' target='_blank' rel='noopener'>" + r.user.slice(0, 10) + "…</a></td>" +
-          "<td class='num'>" + r.block.toLocaleString("id-ID") + "</td></tr>").join("") +
-        "</table></div><div class='total'>Total kedalaman: " + fmt(total, 4) + " " + meta.symbol + " (" + rows.length + " order)</div>";
-    };
-    wrap.style.display = "grid";
-    wrap.innerHTML =
-      "<div class='ob-side buy'><h3>Buy · maker membeli " + meta.symbol + "</h3>" + table(bids, "buy") + "</div>" +
-      "<div class='ob-side sell'><h3>Sell · maker menjual " + meta.symbol + "</h3>" + table(asks, "sell") + "</div>";
-    setStatus(st, "Order aktif: " + bids.length + " buy, " + asks.length + " sell" +
-      (expired ? " · " + expired + " kedaluwarsa disaring" : "") +
-      (canVerify ? " · sisa volume terverifikasi on-chain." : " · ABI tanpa availableVolume — sisa volume tidak diverifikasi."), "ok");
+    // ── trade tape + last price ──
+    const trades = [];
+    for (const log of tradeLogs) {
+      const a = log.args;
+      const get = a.tokenGet.toLowerCase(), give = a.tokenGive.toLowerCase();
+      let price, size, side;
+      if (get === tl && give === ZERO) {           // order beli token dg ETH → taker menjual token
+        size = Number(ethers.formatUnits(a.amountGet, meta.decimals));
+        price = Number(ethers.formatEther(a.amountGive)) / size; side = "sell";
+      } else if (give === tl && get === ZERO) {    // order jual token utk ETH → taker membeli token
+        size = Number(ethers.formatUnits(a.amountGive, meta.decimals));
+        price = Number(ethers.formatEther(a.amountGet)) / size; side = "buy";
+      } else continue;
+      if (!isFinite(price) || price <= 0) continue;
+      trades.push({ price, size, side, block: log.blockNumber, tx: log.transactionHash });
+    }
+    trades.sort((a, b) => b.block - a.block);
+    const last = trades[0];
+    const prev = trades.find(t => t.price !== last?.price);
+    const dir = last && prev ? (last.price >= prev.price ? "up" : "down") : "";
+
+    render_book($("obBook"), bids, asks, meta, last, dir);
+    render_tape($("obTape"), trades.slice(0, 80), meta);
+    $("obSizeHd").textContent = "Ukuran (" + meta.symbol + ")";
+    $("obTradeCount").textContent = trades.length ? trades.length.toLocaleString("id-ID") + " trade" : "";
+    market.style.display = "grid";
+
+    setStatus(st, "Pasar " + meta.symbol + "/ETH: " + bids.length + " bid, " + asks.length + " ask, " +
+      trades.length + " trade" + (expired ? " · " + expired + " order kedaluwarsa disaring" : "") +
+      (canVerify ? " · sisa volume terverifikasi on-chain." : "."), "ok");
   } catch (e) {
-    setStatus(st, "Gagal memindai orderbook: " + (e.shortMessage || e.message) +
+    setStatus(st, "Gagal memuat pasar: " + (e.shortMessage || e.message) +
       "\nRPC publik membatasi rentang getLogs — coba angka blok lebih kecil.", "err");
   }
+}
+
+function render_book(el, bids, asks, meta, last, dir) {
+  const maxCum = (() => {
+    let c = 0, m = 0;
+    for (const a of asks) { c += a.size; m = Math.max(m, c); }
+    c = 0; for (const b of bids) { c += b.size; m = Math.max(m, c); }
+    return m || 1;
+  })();
+  const levelRows = (rows, side) => {
+    if (!rows.length) return "<div class='ob-empty'>Tidak ada order " + (side === "ask" ? "jual" : "beli") + " on-chain aktif.</div>";
+    let cum = 0;
+    const seq = side === "ask" ? [...rows].reverse() : rows; // ask: harga tertinggi di atas
+    // hitung kumulatif dari sisi spread
+    const cumMap = new Map(); let c2 = 0;
+    for (const r of rows) { c2 += r.size; cumMap.set(r, c2); }
+    return seq.map(r => {
+      const w = (cumMap.get(r) / maxCum * 100).toFixed(1);
+      return "<div class='lvl " + side + "'>" +
+        "<div class='depth' style='width:" + w + "%'></div>" +
+        "<span class='px'>" + fmtPx(r.price) + "</span>" +
+        "<span>" + fmtNum(r.size) + "</span>" +
+        "<span>" + fmtNum(cumMap.get(r)) + "</span></div>";
+    }).join("");
+  };
+  const bestAsk = asks[0]?.price, bestBid = bids[0]?.price;
+  let spreadHtml = "";
+  if (bestAsk && bestBid) {
+    const mid = (bestAsk + bestBid) / 2;
+    const spr = bestAsk - bestBid;
+    spreadHtml = "<div class='spread'><span>Spread <b>" + fmtPx(spr) + "</b></span><span>Mid <b>" + fmtPx(mid) + "</b></span></div>";
+  } else {
+    spreadHtml = "<div class='spread'><span>Spread —</span><span>Mid —</span></div>";
+  }
+  const lastHtml = last
+    ? "<span class='last " + dir + "'>" + fmtPx(last.price) + " ETH" + (dir === "up" ? " ↑" : dir === "down" ? " ↓" : "") + "</span>"
+    : "<span class='last'>—</span>";
+  el.innerHTML =
+    "<div class='book-hd'><span class='pair'>" + meta.symbol + " / ETH</span>" + lastHtml + "</div>" +
+    "<div class='lvl-hd'><span>Harga (ETH)</span><span>Ukuran</span><span>Total</span></div>" +
+    "<div class='ob-side-lbl ask'>Ask · jual " + meta.symbol + "</div>" +
+    levelRows(asks, "ask") +
+    spreadHtml +
+    "<div class='ob-side-lbl bid'>Bid · beli " + meta.symbol + "</div>" +
+    levelRows(bids, "bid");
+}
+
+function render_tape(el, trades, meta) {
+  if (!trades.length) { el.innerHTML = "<div class='ob-empty'>Belum ada trade on-chain untuk pasangan ini dalam rentang blok yang dipindai.</div>"; return; }
+  el.innerHTML = trades.map(t =>
+    "<div class='trade " + t.side + "'>" +
+    "<span class='px'>" + fmtPx(t.price) + "</span>" +
+    "<span>" + fmtNum(t.size) + "</span>" +
+    "<span><a href='https://etherscan.io/tx/" + t.tx + "' target='_blank' rel='noopener'>" + t.block.toLocaleString("id-ID") + "</a></span></div>"
+  ).join("");
 }
 
 // ── 5. wallet + withdraw ───────────────────────────────
